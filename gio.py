@@ -317,9 +317,12 @@ class GIO():
         ######  Assume for now that rho_p overwrites stuff  ######
         self.GIO_p(p,'F') #'F' because we want to overwrite the stuff from before; 
                             #do need to remember that we will need to index into the list
-        #pdb.set_trace()
-        epsilon_star = self.epsilon_p
-        epsilon_star = np.linalg.norm(epsilon_star[0],ord=p) #because it is in a list, need to index into the list
+        if p=='inf':
+            epsilon_star = self.epsilon_p
+            epsilon_star = np.linalg.norm(epsilon_star[0],ord=np.inf) #because it is in a list, need to index into the list            
+        else:
+            epsilon_star = self.epsilon_p
+            epsilon_star = np.linalg.norm(epsilon_star[0],ord=p) #because it is in a list, need to index into the list
         
         ##### Need to Account for when we are too close to the boarder of the Feasible Region #####
         if epsilon_star < 1e-8: #Need to exit the function 
@@ -414,9 +417,9 @@ class GIO():
                             #due to the transformation, so we can use an LP solver
             
             #pdb.set_trace() #Looks like everything is good
-        ############ Solving the Convex Progs #############
-        #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
-        #https://projects.coin-or.org/Ipopt/ticket/205
+            ############ Solving the Convex Progs #############
+            #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
+            #https://projects.coin-or.org/Ipopt/ticket/205
             sum_of_epsilons = 0
             #solver = SolverFactory('ipopt')
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
@@ -429,8 +432,53 @@ class GIO():
                 #print("Objective function value is",pyo.value(convex_prog.obj))
                 sum_of_epsilons = sum_of_epsilons + pyo.value(convex_prog.obj)
                 convex_prog.equal_constraint[index].deactivate()
-            
         
+        elif p=='inf': #we have the infinity norm
+            #### Similar to the p=1 norm, we have to do a transformation to convert the 
+            ## max{|x_1|,...,|x_n|} into a linear form
+            ## See documentation for notes on this
+            convex_prog.t = pyo.Var([1]) #hopefully this produces one variable - NEED TO CHECK THIS!
+            
+            ## Two rules to establish the extra constraints
+            def extra_inf_norm_constraints_part1(model,i):
+                return model.ep[i] <= model.t[1]
+            
+            def extra_inf_norm_constraints_part2(model,i):
+                return -1*model.ep[i] <= model.t[1]
+            
+            convex_prog.max_absval_constraints_part1 = pyo.Constraint(\
+                                convex_prog.varindex,\
+                                rule=extra_inf_norm_constraints_part1)
+            convex_prog.max_absval_constraints_part2 = pyo.Constraint(\
+                                convex_prog.varindex,\
+                                rule=extra_inf_norm_constraints_part2)
+            
+            ########## Defining the Objective Function #########
+            def obj_rule_p_inf(model):
+                return model.t[1]
+            convex_prog.obj = pyo.Objective(rule=obj_rule_p_inf)
+            solver = SolverFactory('glpk') #we have a linear program now
+                            #due to the transformation, so we can use an LP solver
+            
+            ############ Solving the Convex Progs #############
+            #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
+            #https://projects.coin-or.org/Ipopt/ticket/205
+            sum_of_epsilons = 0
+            constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
+            for index in constraint_indices:
+                #### Don't think we need these two lines (plus dont have a u any more)####
+                #for i in range(1,convex_prog.numvars+1):
+                #    convex_prog.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
+                convex_prog.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
+                convex_prog.equal_constraint[index].activate() #activating relevant equality constraint
+                solver.solve(convex_prog)
+                #print("Objective function value is",pyo.value(convex_prog.obj))
+                sum_of_epsilons = sum_of_epsilons + pyo.value(convex_prog.obj)
+                convex_prog.equal_constraint[index].deactivate()
+        else:
+            print("Error with entered p value")
+            return
+            
         ##### Calculating the Rho #####
         average_of_epsilons = (1/dim1)*(sum_of_epsilons) 
         rho = 1 - (epsilon_star/average_of_epsilons)
