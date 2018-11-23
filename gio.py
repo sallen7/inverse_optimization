@@ -27,54 +27,17 @@
 ##https://software.sandia.gov/downloads/pub/coopr/CooprGettingStarted.html
 
 import pdb #for debugging
-import numpy as np #numpy is working a little differently in terms of object orientedness
-                    #since I cannot make the methods work directly on an instance of the np class,
-                    #I have to pass in - and doesn't modify the instances directly; like does not
-                    #change the objects I pass into the function
-                    
-                    #objects are like little units/parcels that store attributes and methods
-                    
+import numpy as np                     
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory #page 43 of the Oct 2018 documentation
 import pyomo.kernel as pyok #to differentiate from pyomo.environment
                             #if I want to work from the lower level functionality
                             #of pyomo, I need to work in the kernel
 
-#When Pyomo does a solve, it puts the solution values into attributes within the 
-                            #object (I believe)
+#When Pyomo does a solve, it puts the solution values into attributes within object 
 
-#Doc Statement (Python book said we should include)
+#Doc Statement
 "A class to find the c and epsilon values under different General Inverse Optimization (GIO) models"
-
-               
-###########  Function to Find i* in order to Calculate epsilon*  ###########
-###We define this outside of the class in order to make it a global function
-#def i_star(A,b,x0,p):   #need to figure out how to define methods that are not accessible to the user
-#    residuals = np.transpose( (np.matmul(A,x0) - b) ) #need to transpose
-#    if np.any(residuals<0)==True: #none of the residuals should be less than 0 because x^0 is a feasible point; the code should break if there is a negative residual
-#        print("Error: Negative Residual and Thus Infeasible x^0")
-#        return #to get out of the function entirely
-#        
-#    if p=='inf':
-#        row_norms = np.transpose(np.linalg.norm(A,ord=np.inf,axis=1)) #have a special specification for infinity norm
-#    elif p=='b': #this is for the relative norm case where we divide by absolute b 
-#        #which we will sub in as ``row norms'' here just to keep the notation the same
-#        row_norms = np.transpose(np.absolute(b)) #THIS COULD have issues because not sure what np.absolute does exactly
-#                                    #although b is a column vector (we define it as a column vector)
-#                                    #but we transpose the row vector in
-#    else:
-#        row_norms = np.transpose(np.linalg.norm(A,ord=p,axis=1)) #need to transpose #this is row-wise #should pick an A that wouldn't work
-#    #Inspired by: https://stackoverflow.com/questions/7741878/how-to-apply-numpy-linalg-norm-to-each-row-of-a-matrix
-#    
-#    ratios = np.divide(residuals,row_norms) 
-#    
-#    ######## Calculating 
-#    istar = np.argmin(ratios) #remember indexes from 0
-#    
-#    
-#    min_ratio = ratios[0,istar] #this is a 2D array so need to index accordingly
-#    
-#    return istar,min_ratio
 
 
 class GIO():
@@ -484,11 +447,50 @@ class GIO():
         rho = 1 - (epsilon_star/average_of_epsilons)
         
         if if_append == 'T':
-            self.rho_p.append(rho)
+            self.rho_p.append(rho  )
         else:
             self.rho_p = [rho]
             
-            
+    def calculate_rho_a(self):
+        ###This function will find the exact rho for the absolute duality gap
+        ##GIO model
+        ##We have NOT provided "if append" abilities as of this moment
+        
+        ##### Calculate epsilon*_a #####
+        self.GIO_abs_duality() 
+        epsilon_star_a = self.epsilon_a[1]
+                
+        ##### Need to Account for when we are too close to the boarder of the Feasible Region #####
+        if epsilon_star_a < 1e-8: #Need to exit the function 
+            self.rho_a = [1] #rho would be 1 because if exactly on the boundary then you
+                        #are in X^{OPT}, the ultimate sign of 'fit'
+            return 
+        
+        ##### Calculate Ratios #####
+        residuals = np.transpose( (np.matmul(self.A,self.x0) - self.b) )
+        
+        if np.any(residuals<0)==True: #none of the residuals should be less than 0 because x^0 is a feasible point; the code should break if there is a negative residual
+            print("Error: Negative Residual and Thus Infeasible x^0")
+            return #to get out of the function entirely
+        
+        ### Calculating the denominator: 1 norm for denominator ###  
+        row_norms = np.transpose(np.linalg.norm(self.A,ord=1,axis=1)) 
+        
+        ratios = np.divide(residuals,row_norms) 
+        ratios = np.reshape(ratios,(np.size(ratios),))
+        
+        sum_ratios = np.sum(ratios) #from experimenting, will sum no matter the dimensions of ratios
+        (dim1,dim2) = np.shape(self.A)
+        average_ratios = (1/dim1)*sum_ratios
+        self.rho_a = [1-(epsilon_star_a/average_ratios)]
+        
+    def calculate_rho_r(self):
+        ###This function will find the exact rho for the relative duality gap
+        ##GIO model
+        ##We have NOT provided "if append" abilities as of this moment
+        print("working on it")
+          
+        
                    
     ###################### To be continued methods/functions #################################    
     def calculate_c(self):
