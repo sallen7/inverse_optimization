@@ -447,7 +447,7 @@ class GIO():
         rho = 1 - (epsilon_star/average_of_epsilons)
         
         if if_append == 'T':
-            self.rho_p.append(rho  )
+            self.rho_p.append(rho)
         else:
             self.rho_p = [rho]
             
@@ -458,7 +458,7 @@ class GIO():
         
         ##### Calculate epsilon*_a #####
         self.GIO_abs_duality() 
-        epsilon_star_a = self.epsilon_a[1]
+        epsilon_star_a = np.linalg.norm(self.epsilon_a[1],ord=np.inf) #CHECK THIS!!!!
                 
         ##### Need to Account for when we are too close to the boarder of the Feasible Region #####
         if epsilon_star_a < 1e-8: #Need to exit the function 
@@ -488,16 +488,31 @@ class GIO():
         ###This function will find the exact rho for the relative duality gap
         ##GIO model
         ##We have NOT provided "if append" abilities as of this moment
-        print("working on it")
-          
+        [istar,min_ratio] = self.i_star(self.A,self.b,self.x0,'b') #assuming this is how
+                            #we calculate istar
         
+        ##### Calculating the Numerator #####
+        numerator = np.absolute( (np.dot(self.A[istar,:],self.x0)*(1/self.b[istar,0])) - 1)
+        
+        ##### Calculating the Denominator #####
+        (dim1,dim2) = np.shape(self.A)
+        sum_denom = 0
+        for i in range(dim1): 
+            sum_denom = sum_denom + np.absolute( (np.dot(self.A[i,:],self.x0)*(1/self.b[i,0])) - 1)
+        
+        average_sum_denom = (1/dim1)*sum_denom
+        
+        #### Calculating rho_r ####        
+        self.rho_r = [1-(numerator/average_sum_denom)]
+    
+
+    ######## Next up Function #############        
+    def rho_p_approx(self,p):
+        print("Calculating approx rho_p") 
                    
     ###################### To be continued methods/functions #################################    
     def calculate_c(self):
         print("Actually calculates the c vector.  Shouldnt be hard, just need to do it")
-    
-    def rho_p_approx(self,p):
-        print("Calculating approx rho_p")
     
     
     def GIO_linear_solve(self,type_c_constraint,type_ep_constraint):

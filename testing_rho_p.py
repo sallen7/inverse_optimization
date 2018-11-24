@@ -57,7 +57,7 @@ for i in range(0,density):
         else:        
             #pdb.set_trace()
             generating_GIO = GIO(A,b,x0_1)
-            generating_GIO.calculate_rho_p(1,'F')
+            generating_GIO.calculate_rho_p(1,'F')  #NEED TO EVENTUALLY CHECK rho_a and rho_r
             print("This is testmod rho_p",generating_GIO.rho_p)
             mesh_z[i,j] = generating_GIO.rho_p[0] #storing the rho_p in the proper place of mesh_z
 
