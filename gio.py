@@ -113,7 +113,7 @@ class GIO():
         #https://stackoverflow.com/questions/18582178/how-to-return-all-the-minimum-indices-in-numpy
         
         if np.size(istar) > 1:
-            print("Under the",q,"loss metric, x^0 has been projected onto multiple",\
+            print("Under the",q,"dual norm, x^0 has been projected onto multiple",\
                   "hyperplanes.  For now, we will choose the first i index",\
                   "and will put the rest of the indices in the istar_multi",\
                   "attribute.")
