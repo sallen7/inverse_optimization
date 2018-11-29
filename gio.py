@@ -458,7 +458,7 @@ class GIO():
         
         ##### Calculate epsilon*_a #####
         self.GIO_abs_duality() 
-        epsilon_star_a = np.linalg.norm(self.epsilon_a[1],ord=np.inf) #CHECK THIS!!!!
+        epsilon_star_a = np.linalg.norm(self.epsilon_a[0],ord=np.inf) #CHECK THIS!!!!
                 
         ##### Need to Account for when we are too close to the boarder of the Feasible Region #####
         if epsilon_star_a < 1e-8: #Need to exit the function 
@@ -501,9 +501,9 @@ class GIO():
             sum_denom = sum_denom + np.absolute( (np.dot(self.A[i,:],self.x0)*(1/self.b[i,0])) - 1)
         
         average_sum_denom = (1/dim1)*sum_denom
-        
+        #pdb.set_trace()
         #### Calculating rho_r ####        
-        self.rho_r = [1-(numerator/average_sum_denom)]
+        self.rho_r = [1-(numerator[0]/average_sum_denom[0])]
     
 
     ######## Next up Function #############        

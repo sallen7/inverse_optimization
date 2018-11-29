@@ -9,85 +9,78 @@ from pyomo.opt import SolverFactory #page 43 of the Oct 2018 documentation
 from gio import GIO
 #from joblib import Parallel, delayed #for parallelization
 
+##################### Data ############################### 
 A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
 b = np.array([[10],[-6],[4],[-10]])
 x0 = np.array([[2.5],[3]])
 
+#### Just testing that Methods Run for One Point ####
 #testmod = GIO(A,b,x0)
-#testmod.calculate_rho_p(1,'F')
-#print("This is testmod rho_p p=1",testmod.rho_p)
-#
-#testmod.calculate_rho_p(2,'F')
-#print("This is testmod rho_p p=2",testmod.rho_p)
-#testmod = GIO(A,b,x0)
-##pdb.set_trace()
-#
-#testmod.calculate_rho_p(2,'F') #remember that RHO_P is a 'list'
-#
-#print("This is testmod rho_p",testmod.rho_p) #seems to work on this one point
+#testmod.calculate_rho_p('inf','F')
+#print("This is testmod rho_p p=inf",testmod.rho_p)
 
-##### Generating the Heat Map ######
-##Need to generate a mesh with (0,5) on the x and (0,4) on the y
-##Can test the residual of each potential x0 from the mesh to see if Ax^0 >= b
-##If not, then we just discard the point
-##I think we DO want to "create a new GIO" for each x0 - will make parallelizing easier
-    ##We are afterall doing 4 nonlinear solves (since we are doing the 2 norm)
-## (although we can do some loop unrolling to do instruction-wise parallelization)
+#p=1: [0.54929577464788737]
+#p=2:  [0.56450853266162038]
+#p=inf: [0.58974358974358942] #they are diff numbers
+
+#testmod.calculate_rho_a()
+#print("This is testmod rho_a:",testmod.rho_a)
+#rho_a: [0.58208955223880599] (I think it makes sense that decently similar to
+#p=inf)
+
+#testmod.calculate_rho_r()
+#print("This is testmod rho_r:",testmod.rho_r)
+#rho_r: [array([ 0.68421053])]  -> this is a bit higher than the others
 
 
+################ Generating the Heat Map ###############################
 
-
+##### Set Up #####
 time_0 = time.clock()
-density = 30
+density = 20
 half_dense = int(density/2)
 x_vals = np.linspace(0,5,density)
 y_vals = np.linspace(0,4,density)
 
 (mesh_x,mesh_y) = np.meshgrid(x_vals,y_vals) #meshing
 mesh_z = np.zeros((density,density)) #creating the container to hold the rho_p values
-                                    #for each of the x0 values
+                                    #for each of the x0 values 
+
+#### Defining the Function ####
+#Might eventually want an argument for the calculate_rho_p func
+def generate_rho(x1,y1,i,j): #originally didn't have i and j as arguments so they were taken 
+                            #as global since weren't defined in the function
+    global mesh_z #making the mesh_z global so that we can actually define this function
+    x0_1 = np.array([[x1],[y1]])
+    residuals_1 = np.dot(A,x0_1) - b
+    if np.any(residuals_1<0)==True:
+        print("Not feasible, moving on...") #and since there is already a 0 in the 
+                                            #mesh_z matrix, we actually are pretty good
+    else:        
+        #pdb.set_trace()
+        generating_GIO = GIO(A,b,x0_1)
+        generating_GIO.calculate_rho_p(1,'F')  #NEED TO EVENTUALLY CHECK rho_a and rho_r
+        print("This is testmod rho_p",generating_GIO.rho_p)
+        mesh_z[i,j] = generating_GIO.rho_p[0] #storing the rho_p in the proper place of mesh_z
+                                                                                
+                            
+        
+#### Generating the Rho ####                                                                     
 for i in range(0,density):
     for j in range(0,density):
         x1 = mesh_x[i,j]
         y1 = mesh_y[i,j]
-        x0_1 = np.array([[x1],[y1]])
-        residuals_1 = np.dot(A,x0_1) - b
-        if np.any(residuals_1<0)==True:
-            print("Not feasible, moving on...")
-        else:        
-            #pdb.set_trace()
-            generating_GIO = GIO(A,b,x0_1)
-            generating_GIO.calculate_rho_p(1,'F')  #NEED TO EVENTUALLY CHECK rho_a and rho_r
-            print("This is testmod rho_p",generating_GIO.rho_p)
-            mesh_z[i,j] = generating_GIO.rho_p[0] #storing the rho_p in the proper place of mesh_z
+        generate_rho(x1,y1,i,j)
+        
 
-
-
-
-        ####Want to try to run the process below in parallel to the one above - need to 
-        #Read the links below
-#        x2 = mesh_x[i,j+half_dense] #might have to double check the indexing here
-#        y2 = mesh_y[i,j+half_dense]
-#        x0_2 = np.array([[x2],[y2]])
-#        residuals_2 = np.dot(A,x0_2) - b
-#        if np.any(residuals_2<0)==True:
-#            print("Not feasible, moving on...")
-#        else:        
-#            #pdb.set_trace()
-#            generating_GIO_2 = GIO(A,b,x0_2)
-#            generating_GIO_2.calculate_rho_p(2,'F')
-#            print("This is testmod rho_p",generating_GIO_2.rho_p)
-#            mesh_z[i,j+half_dense] = generating_GIO_2.rho_p[0] #storing the rho_p in the proper place of mesh_z
-
-
-
-
+##### Creating the Graphic #####
 #Adopted the colorbar parts of the code from: https://stackoverflow.com/questions/6063876/matplotlib-colorbar-for-scatter
-colormap_option = plt.cm.get_cmap('RdYlBu') 
-rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z,vmin=0,vmax=1,cmap=colormap_option)
 #Link below also helped with understanding plt.scatter()
 #https://matplotlib.org/gallery/shapes_and_collections/scatter.html#sphx-glr-gallery-shapes-and-collections-scatter-py
 #https://matplotlib.org/api/_as_gen/matplotlib.pyplot.scatter.html
+
+colormap_option = plt.cm.get_cmap('RdYlBu') 
+rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z,vmin=0,vmax=1,cmap=colormap_option)
 plt.colorbar(rho_map)
 
 print("Run time (seconds) for the script: ")             
@@ -96,8 +89,9 @@ print(time_1) #Took 76 seconds for density of 30 (with no loop unrolling)
               #the image doesn't get very fine grained; so going to need more points
               #We were at like 45 seconds for 20
      
+        
 plt.show() #want the graphic to show after the time gets recorded
-
+            #need a way for this to work in Jupyter
 
 
 
