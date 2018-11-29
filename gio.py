@@ -64,6 +64,7 @@ class GIO():
         self.rho_p = []
         self.rho_a = []
         self.rho_r = [] #rho exact under the various models
+        self.rho_p_approx = [] #rho approximate for the p norm GIO model
                      
     def change_x0(self,new_x0): 
         #Method to change x0 (even though we can do with dot notation)
@@ -140,16 +141,14 @@ class GIO():
                                     #made use of: https://stackoverflow.com/questions/152580/whats-the-canonical-way-to-check-for-type-in-python
                                     #https://www.programiz.com/python-programming/methods/built-in/isinstance
             p = 'inf' 
-        
-        self.p = p #DO I WANT THIS? #MIGHT NEED TO ADD IN STUFF ABOUT FORCING 1,2, AND INFINITY - only those options
 
         ##########    Computing the Epsilon*    ########
         ##  Determining the Dual Norm for the Chosen p-Norm   ##
-        if self.p==1:
+        if p==1:
             q = 'inf'
-        elif self.p == 2:
+        elif p == 2:
             q = 2
-        else: #presumably self.p = 'inf'
+        else: #presumably p = 'inf'
             q = 1
         
         [istar,min_ratio] = self.i_star(self.A,self.b,self.x0,q) #finding i*; want to pass
@@ -158,7 +157,7 @@ class GIO():
                                                             #the data
         
         ##  Actually Computing Epsilon* for Each p-Norm  ##
-        if self.p == 1:
+        if p == 1:
             A_row = self.A[istar,:] #grabbing the row corresponding to istar
             jstar = np.argmax(np.absolute(A_row)) #to find j*
             epsilon_constant = np.sign(A_row[jstar])*min_ratio #constant by which to multiply e_j*
@@ -173,7 +172,7 @@ class GIO():
             if dim1 < dim2: 
                 epsilon = np.transpose(epsilon) 
             
-        elif self.p == 2:
+        elif p == 2:
             A_row = self.A[istar,:]
             A_unit_row = (1/np.linalg.norm(A_row))*A_row
             epsilon = min_ratio*A_unit_row #following the formula
@@ -186,7 +185,7 @@ class GIO():
             if dim1 < dim2: 
                 epsilon = np.transpose(epsilon) 
             
-        else: #presumably self.p = 'inf'
+        else: #presumably p = 'inf'
             A_row = self.A[istar,:]
             epsilon = min_ratio*np.sign(A_row)
             
@@ -450,13 +449,13 @@ class GIO():
         
         ##### Calculate epsilon*_a #####
         self.GIO_abs_duality() 
-        epsilon_star_a = np.linalg.norm(self.epsilon_a[0],ord=np.inf) #use inf norm to get rid 
+        normed_epsilon_star_a = np.linalg.norm(self.epsilon_a[0],ord=np.inf) #use inf norm to get rid 
                                                                     #of the np.sign(A_row) in the epsilon_a
                                                                     #to recover the min ratio
                                                                     #that was calculated with .i_star(self.A,self.b,self.x0,1)
                 
         ##### Need to Account for when we are too close to the boarder of the Feasible Region #####
-        if epsilon_star_a < 1e-8: #Need to exit the function 
+        if normed_epsilon_star_a < 1e-8: #Need to exit the function 
             self.rho_a = [1] #rho would be 1 because if exactly on the boundary then you
                         #are in X^{OPT}, the ultimate sign of 'fit'
             return 
@@ -477,7 +476,7 @@ class GIO():
         sum_ratios = np.sum(ratios) #from experimenting, will sum no matter the dimensions of ratios
         (dim1,dim2) = np.shape(self.A)
         average_ratios = (1/dim1)*sum_ratios
-        self.rho_a = [1-(epsilon_star_a/average_ratios)]
+        self.rho_a = [1-(normed_epsilon_star_a/average_ratios)]
         
     def calculate_rho_r(self):
         ###This function will find the exact rho for the relative duality gap
@@ -508,10 +507,74 @@ class GIO():
         ########### Calculating rho_r ##############        
         self.rho_r = [1-(numerator[0]/average_sum_denom[0])]
     
+       
+    def calculate_rho_p_approx(self,p):
+        ##Not going to allow for an append option right now
+        
+        if isinstance(p,str)==True: #making sure that if type in 'infinity' 
+                                    #(or something like it), then gets converted
+            p = 'inf'
+        
+        ############### Calculating the Numerator ###################
+        self.GIO_p(p,'F')
+        if p=='inf':
+            numerator = np.linalg.norm(self.epsilon_p[0],ord=np.inf)
+        else:
+            numerator = np.linalg.norm(self.epsilon_p[0],ord=p)
+        
+        ### Need to Account for when we are too close to the boarder of the Feasible Region ###
+        if numerator < 1e-8: #Need to exit the function 
+            self.rho_p_approx = [1] #rho would be 1 because if exactly on the boundary then you
+                        #are in X^{OPT}, the ultimate sign of 'fit'
+            return 
+        
+        ############# Calculating the Denominator #####################
+        #### Getting the Dual Norms ####
+        if p==1:
+            q = 'inf'
+        elif p == 2:
+            q = 2
+        else: #presumably p = 'inf'
+            q = 1
+        
+        ###### Getting the Min Projected Distance to Each Hyperplane (the Ratios) ######
+        residuals = np.transpose( (np.matmul(self.A,self.x0) - self.b) )
+        
+        if np.any(residuals<0)==True: #none of the residuals should be less than 0 because x^0 is a feasible point; the code should break if there is a negative residual
+            print("Error: Negative Residual and Thus Infeasible x^0")
+            return #to get out of the function entirely
+        
+        if q == 'inf':
+            row_norms = np.transpose(np.linalg.norm(self.A,ord=np.inf,axis=1)) 
+        else:
+            row_norms = np.transpose(np.linalg.norm(self.A,ord=q,axis=1))
+        
+        ratios = np.divide(residuals,row_norms) 
+        ratios = np.reshape(ratios,(np.size(ratios),))
+        
+        ### Finding the Average ###
+        (dim1,dim2) = np.shape(self.A)
+        denominator = (1/dim1)*np.sum(ratios)
+        
+        ########### Calculating Rho_p Approximate ##############
+        self.rho_p_approx = [1-(numerator/denominator)]
+        
+        
+        
+        
+        
+        
+        
 
-    ######## Next up Function #############        
-    def rho_p_approx(self,p):
-        print("Calculating approx rho_p") 
+        
+        
+            
+        
+        
+        
+        
+        
+        
                    
     ###################### To be continued methods/functions #################################    
     def calculate_c(self):
@@ -534,7 +597,14 @@ class GIO():
               "It will require that multi_istar be nonempty and the user would need to",\
               "specify from which GIO model the multi istar model came so that we can",\
               "update the appropriate attributes. Would need to call calculate_c")
-
+        #Dr. Goldstein brought up an interesting point that being projected onto multiple
+        #hyperplanes would likely be an "unstable" solution - in that if we move x0 just
+        #a bit, then it wouldn't really matter
+        
+        #The c vector and the resulting decisions might matter though - this is where
+        #rho would probably come into play as well
+        
+        #Need to read about the use of rho, epsilon, and c TOGETHER
         
         
             

@@ -8,39 +8,6 @@ import numpy as np
 import unittest
 from gio import GIO #importing the GIO class for testing
 
-#####Going to Run the test less sophisticated out here too
-#A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
-#b = np.array([[10],[-6],[4],[-10]])
-#x0 = np.array([[2.5],[3]])
-#
-#gio_testing = GIO(A,b,x0)
-#
-#gio_testing.GIO_p(1,'T')
-#
-#print(gio_testing.x0_epsilon_p)
-
-#gio_testing.GIO_relative_duality()
-#
-#print("GIO relative duality x0-ep_r:",gio_testing.x0_epsilon_r)
-
-#gio_testing.GIO_p('inf') #IS SOMETHING GETTING STORED WEIRD?
-#
-#gio_testing.GIO_abs_duality() #doesn't take any arguments
-#
-#print("******************************")
-#print("x0-ep for abs dual:",gio_testing.x0_epsilon_a) #not outputting correctly
-#print("epsilon a:",gio_testing.epsilon_a) #not outputting correctly
-#print("x0-ep for p=inf:",gio_testing.x0_epsilon_p)
-#print("epsilon p:",gio_testing.epsilon_p)
-
-#print(gio_testing.A)
-#gio_testing.GIO_p(1)
-#print(gio_testing.x0_epsilon_p)
-#gio_testing.GIO_p('inf')
-#print(gio_testing.x0_epsilon_p)
-#gio_testing.GIO_p(2)
-#print(gio_testing.x0_epsilon_p)
-
 #########   Unit Test References   ######################
 #Inspired by: https://stackoverflow.com/questions/3302949/whats-the-best-way-to-assert-for-numpy-array-equality
         #and https://stackoverflow.com/questions/10062954/valueerror-the-truth-value-of-an-array-with-more-than-one-element-is-ambiguous

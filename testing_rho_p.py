@@ -15,7 +15,7 @@ b = np.array([[10],[-6],[4],[-10]])
 x0 = np.array([[2.5],[3]])
 
 #### Just testing that Methods Run for One Point ####
-#testmod = GIO(A,b,x0)
+testmod = GIO(A,b,x0)
 #testmod.calculate_rho_p('inf','F')
 #print("This is testmod rho_p p=inf",testmod.rho_p)
 
@@ -32,13 +32,21 @@ x0 = np.array([[2.5],[3]])
 #print("This is testmod rho_r:",testmod.rho_r)
 #rho_r: [array([ 0.68421053])]  -> this is a bit higher than the others
 
+testmod.calculate_rho_p_approx(2)
+print("This is testmod rho_p approximate:",testmod.rho_p_approx)
+#rho_p approximate: [0.56450853266162049] #pretty similar to the exact bc
+#we are positioned in the feasible region such that the projections to
+#the hyperplanes are likely still feasible (or almost there)
+
+#also note that rho_approx <= rho
+
 
 ################ Generating the Heat Map ###############################
 
 ##### Set Up #####
 time_0 = time.clock()
-density = 20
-p = 1 #for setting the norm
+density = 30
+p = 2 #for setting the norm
 half_dense = int(density/2)
 x_vals = np.linspace(0,5,density)
 y_vals = np.linspace(0,4,density)
@@ -46,12 +54,14 @@ y_vals = np.linspace(0,4,density)
 (mesh_x,mesh_y) = np.meshgrid(x_vals,y_vals) #meshing
 mesh_z = np.zeros((density,density)) #creating the container to hold the rho_p values
                                     #for each of the x0 values 
+mesh_z_approx = np.zeros((density,density))
 
 #### Defining the Function ####
 #Might eventually want an argument for the calculate_rho_p func
 def generate_rho_p(x1,y1,i,j,p): #originally didn't have i and j as arguments so they were taken 
                             #as global since weren't defined in the function
     global mesh_z #making the mesh_z global so that we can actually define this function
+    global mesh_z_approx
     x0_1 = np.array([[x1],[y1]])
     residuals_1 = np.dot(A,x0_1) - b
     if np.any(residuals_1<0)==True:
@@ -59,12 +69,17 @@ def generate_rho_p(x1,y1,i,j,p): #originally didn't have i and j as arguments so
                                             #mesh_z matrix, we actually are pretty good
     else:        
         #pdb.set_trace()
-        #### For p norm ####
+        #### For p norm rho ####
         generating_GIO = GIO(A,b,x0_1)
         generating_GIO.calculate_rho_p(p,'F')  
         print("This is generating_GIO rho_p:",generating_GIO.rho_p) 
         mesh_z[i,j] = generating_GIO.rho_p[0] #storing the rho_p in the proper place of mesh_z
-                                                                                
+        ### For p norm rho approximate ####
+        generating_GIO.calculate_rho_p_approx(p)
+        print("This is generating_GIO rho_p approximate:",generating_GIO.rho_p_approx)
+        #pdb.set_trace()
+        mesh_z_approx[i,j] = generating_GIO.rho_p_approx[0] #storing the rho_p_approx in the mesh_z_approx
+        #####NOW NEED TO MAKE ANOTHER GRAPH WITH THE DIFFERENCE BETWEEN THE TWO (maybe a side by side )                                                                        
                                
 #### Generating the Rho ####                                                                     
 for i in range(0,density):
@@ -80,12 +95,23 @@ for i in range(0,density):
 #https://matplotlib.org/gallery/shapes_and_collections/scatter.html#sphx-glr-gallery-shapes-and-collections-scatter-py
 #https://matplotlib.org/api/_as_gen/matplotlib.pyplot.scatter.html
 
-colormap_option = plt.cm.get_cmap('RdYlBu') 
+plt.subplot(121)
+colormap_option = plt.cm.get_cmap('rainbow') 
 rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z,vmin=0,vmax=1,cmap=colormap_option)
 plt.colorbar(rho_map)
 plt.xlabel('x_1')
 plt.ylabel('x_2')
 plt.title('Rho_p for Chan et al. (2018) Example 1, p=' + str(p))
+
+plt.subplot(122)
+colormap_option = plt.cm.get_cmap('rainbow') 
+rho_map = plt.scatter(mesh_x,mesh_y,c=(mesh_z-mesh_z_approx),vmin=0,vmax=0.028,cmap=colormap_option)
+plt.colorbar(rho_map)
+plt.xlabel('x_1')
+plt.ylabel('x_2')
+plt.title('rho_p - rho_p_approximate, p=' + str(p))
+
+
 
 print("Run time (seconds) for the script: ")             
 time_1 = time.clock() - time_0
