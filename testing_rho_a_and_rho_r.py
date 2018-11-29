@@ -38,7 +38,7 @@ x0 = np.array([[2.5],[3]])
 ##### Set Up #####
 time_0 = time.clock()
 density = 20
-p = 1 #for setting the norm
+type_duality = 'r' #'a' or 'r'
 half_dense = int(density/2)
 x_vals = np.linspace(0,5,density)
 y_vals = np.linspace(0,4,density)
@@ -49,7 +49,7 @@ mesh_z = np.zeros((density,density)) #creating the container to hold the rho_p v
 
 #### Defining the Function ####
 #Might eventually want an argument for the calculate_rho_p func
-def generate_rho_p(x1,y1,i,j,p): #originally didn't have i and j as arguments so they were taken 
+def generate_rho_a_r(x1,y1,i,j,type_duality): #originally didn't have i and j as arguments so they were taken 
                             #as global since weren't defined in the function
     global mesh_z #making the mesh_z global so that we can actually define this function
     x0_1 = np.array([[x1],[y1]])
@@ -58,20 +58,27 @@ def generate_rho_p(x1,y1,i,j,p): #originally didn't have i and j as arguments so
         print("Not feasible, moving on...") #and since there is already a 0 in the 
                                             #mesh_z matrix, we actually are pretty good
     else:        
-        #pdb.set_trace()
-        #### For p norm ####
+        #### For duality gap models ####
         generating_GIO = GIO(A,b,x0_1)
-        generating_GIO.calculate_rho_p(p,'F')  
-        print("This is generating_GIO rho_p:",generating_GIO.rho_p) 
-        mesh_z[i,j] = generating_GIO.rho_p[0] #storing the rho_p in the proper place of mesh_z
+        if type_duality == 'a':
+            generating_GIO.calculate_rho_a()  
+            print("This is testmod rho_a:",generating_GIO.rho_a) #runs extremely quickly
+            mesh_z[i,j] = generating_GIO.rho_a[0] #storing the rho_p in the proper place of mesh_z
+        elif type_duality == 'r':
+            generating_GIO.calculate_rho_r()  
+            print("This is testmod rho_a:",generating_GIO.rho_r) #runs extremely quickly
+            mesh_z[i,j] = generating_GIO.rho_r[0] #storing the rho_p in the proper place of mesh_z
+        else:
+            print("ERROR: invalid type_duality argument for function generate_rho_a_r")
+            return
                                                                                 
                                
-#### Generating the Rho ####                                                                     
+########### Generating the Rho ###########                                                                     
 for i in range(0,density):
     for j in range(0,density):
         x1 = mesh_x[i,j]
         y1 = mesh_y[i,j]
-        generate_rho_p(x1,y1,i,j,p)
+        generate_rho_a_r(x1,y1,i,j,type_duality)
         
 
 ##### Creating the Graphic #####
@@ -85,7 +92,7 @@ rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z,vmin=0,vmax=1,cmap=colormap_option)
 plt.colorbar(rho_map)
 plt.xlabel('x_1')
 plt.ylabel('x_2')
-plt.title('Rho_p for Chan et al. (2018) Example 1, p=' + str(p))
+plt.title('Rho_p for Chan et al. (2018) Example 1, duality=' + type_duality)
 
 print("Run time (seconds) for the script: ")             
 time_1 = time.clock() - time_0
@@ -96,50 +103,3 @@ print(time_1) #Took 76 seconds for density of 30 (with no loop unrolling)
         
 plt.show() #want the graphic to show after the time gets recorded
             #need a way for this to work in Jupyter
-
-
-
-
-##########################################################################
-##########Trying to Parallelize#########
-##DEPENDING WHAT I HAVE TIME FOR: It would be cool to write a script or a small
-##function that could take a series of x0 and basically do the parallelized checking that I
-#want to do here for the various parts of the module
-
-#OR, I can just make this script available on GITHUB and encourage people to reuse the code
-
-#http://numba.pydata.org/
-#https://scicomp.stackexchange.com/questions/19586/parallelizing-a-for-loop-in-python
-#https://joblib.readthedocs.io/en/latest/parallel.html
-#https://stackabuse.com/parallel-processing-in-python/ - might just go with parallel processes
-#https://stackoverflow.com/questions/3474382/how-do-i-run-two-python-loops-concurrently - or do parallel queues as the
-    #stackoverflow states
-#https://stackoverflow.com/questions/9786102/how-do-i-parallelize-a-simple-python-loop - do need to be careful
-    #about the shared memory stuff - that "universal lock" that has come up in a few of these links could get triggered
-#If end up using joblib, will need to download it with conda
-    
-    #Probably should do more other coding before do much parallel coding
-    #probably should go more on the back burner??
-
-#def compute_z(i,j,mesh_x,mesh_y,mesh_z):
-#    x1 = mesh_x[i,j]
-#    y1 = mesh_y[i,j]
-#    x0_1 = np.array([[x1],[y1]])
-#    residuals_1 = np.dot(A,x0_1) - b
-#    if np.any(residuals_1<0)==True:
-#        print("Not feasible, moving on...")
-#    else:        
-#        #pdb.set_trace()
-#        generating_GIO = GIO(A,b,x0_1)
-#        generating_GIO.calculate_rho_p(2,'F')
-#        print("This is testmod rho_p",generating_GIO.rho_p)
-#        mesh_z[i,j] = generating_GIO.rho_p[0] #storing the rho_p in the proper place of mesh_z
-#
-
-
-
-
-
-
-
-

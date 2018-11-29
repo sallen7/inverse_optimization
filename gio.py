@@ -254,14 +254,6 @@ class GIO():
         self.GIO_p('inf','T')        
         self.GIO_abs_duality()
         self.GIO_relative_duality()
-        
-        #print("sup placeholder")
-        #want to define a function that produces all of the measures
-        #essentially is calling all of the other methods
-        #will need to check that all of the attributes get filled
-        
-        #going to try to append onto x0_epsilon_p and epsilon_p
-        #iterate through a list of the 1,2, and infinity norms
     
             
     def calculate_rho_p(self,p,if_append):
@@ -458,7 +450,10 @@ class GIO():
         
         ##### Calculate epsilon*_a #####
         self.GIO_abs_duality() 
-        epsilon_star_a = np.linalg.norm(self.epsilon_a[0],ord=np.inf) #CHECK THIS!!!!
+        epsilon_star_a = np.linalg.norm(self.epsilon_a[0],ord=np.inf) #use inf norm to get rid 
+                                                                    #of the np.sign(A_row) in the epsilon_a
+                                                                    #to recover the min ratio
+                                                                    #that was calculated with .i_star(self.A,self.b,self.x0,1)
                 
         ##### Need to Account for when we are too close to the boarder of the Feasible Region #####
         if epsilon_star_a < 1e-8: #Need to exit the function 
@@ -491,10 +486,17 @@ class GIO():
         [istar,min_ratio] = self.i_star(self.A,self.b,self.x0,'b') #assuming this is how
                             #we calculate istar
         
-        ##### Calculating the Numerator #####
+        ########### Calculating the |e_r^* - 1| (the Numerator) ############
         numerator = np.absolute( (np.dot(self.A[istar,:],self.x0)*(1/self.b[istar,0])) - 1)
         
-        ##### Calculating the Denominator #####
+        ### Need to Account for when we are too close to the boarder of the Feasible Region ###
+        if numerator < 1e-8: #Need to exit the function 
+            self.rho_r = [1] #rho would be 1 because if exactly on the boundary then you
+                        #are in X^{OPT}, the ultimate sign of 'fit'
+            return 
+        
+        
+        ########### Calculating the Denominator #############
         (dim1,dim2) = np.shape(self.A)
         sum_denom = 0
         for i in range(dim1): 
@@ -502,7 +504,8 @@ class GIO():
         
         average_sum_denom = (1/dim1)*sum_denom
         #pdb.set_trace()
-        #### Calculating rho_r ####        
+        
+        ########### Calculating rho_r ##############        
         self.rho_r = [1-(numerator[0]/average_sum_denom[0])]
     
 
