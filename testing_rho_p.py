@@ -15,7 +15,7 @@ b = np.array([[10],[-6],[4],[-10]])
 x0 = np.array([[2.5],[3]])
 
 #### Just testing that Methods Run for One Point ####
-testmod = GIO(A,b,x0)
+#testmod = GIO(A,b,x0)
 #testmod.calculate_rho_p('inf','F')
 #print("This is testmod rho_p p=inf",testmod.rho_p)
 
@@ -32,8 +32,8 @@ testmod = GIO(A,b,x0)
 #print("This is testmod rho_r:",testmod.rho_r)
 #rho_r: [array([ 0.68421053])]  -> this is a bit higher than the others
 
-testmod.calculate_rho_p_approx(2)
-print("This is testmod rho_p approximate:",testmod.rho_p_approx)
+#testmod.calculate_rho_p_approx(2)
+#print("This is testmod rho_p approximate:",testmod.rho_p_approx)
 #rho_p approximate: [0.56450853266162049] #pretty similar to the exact bc
 #we are positioned in the feasible region such that the projections to
 #the hyperplanes are likely still feasible (or almost there)
@@ -45,8 +45,9 @@ print("This is testmod rho_p approximate:",testmod.rho_p_approx)
 
 ##### Set Up #####
 time_0 = time.clock()
-density = 30
-p = 2 #for setting the norm
+density = 70
+#diff_max = 0.03#0.028
+p = 'inf' #for setting the norm
 half_dense = int(density/2)
 x_vals = np.linspace(0,5,density)
 y_vals = np.linspace(0,4,density)
@@ -95,7 +96,7 @@ for i in range(0,density):
 #https://matplotlib.org/gallery/shapes_and_collections/scatter.html#sphx-glr-gallery-shapes-and-collections-scatter-py
 #https://matplotlib.org/api/_as_gen/matplotlib.pyplot.scatter.html
 
-plt.subplot(121)
+plt.subplot(131)
 colormap_option = plt.cm.get_cmap('rainbow') 
 rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z,vmin=0,vmax=1,cmap=colormap_option)
 plt.colorbar(rho_map)
@@ -103,9 +104,19 @@ plt.xlabel('x_1')
 plt.ylabel('x_2')
 plt.title('Rho_p for Chan et al. (2018) Example 1, p=' + str(p))
 
-plt.subplot(122)
+plt.subplot(132)
 colormap_option = plt.cm.get_cmap('rainbow') 
-rho_map = plt.scatter(mesh_x,mesh_y,c=(mesh_z-mesh_z_approx),vmin=0,vmax=0.028,cmap=colormap_option)
+rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z_approx,vmin=0,vmax=1,cmap=colormap_option)
+plt.colorbar(rho_map)
+plt.xlabel('x_1')
+plt.ylabel('x_2')
+plt.title('Rho_p_approx, p=' + str(p))
+
+
+plt.subplot(133)
+colormap_option = plt.cm.get_cmap('rainbow') 
+diff_max = np.amax(mesh_z-mesh_z_approx)
+rho_map = plt.scatter(mesh_x,mesh_y,c=(mesh_z-mesh_z_approx),vmin=0,vmax=diff_max,cmap=colormap_option)
 plt.colorbar(rho_map)
 plt.xlabel('x_1')
 plt.ylabel('x_2')
