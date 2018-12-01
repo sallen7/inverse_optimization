@@ -61,6 +61,9 @@ class GIO():
         self.x0_epsilon_a = []
         self.x0_epsilon_r = [] #(x^0 - ep^*) for the various GIO models; preallocating lists in case we end up appending
         self.istar_multi = [] #storage for in case we project to multiple hyperplanes
+        self.c_p = []
+        self.c_a = []
+        self.c_r = [] #lists for storing the c cost vectors
         self.rho_p = []
         self.rho_a = []
         self.rho_r = [] #rho exact under the various models
@@ -197,14 +200,17 @@ class GIO():
             if dim1 < dim2: 
                 epsilon = np.transpose(epsilon) 
         
-        #######  Storing the Epsilon* as an Attribute  #######
+        #######  Storing the Epsilon* as an Attribute &  #######
+        #######         Calculating the c vector         #######
         if if_append == 'T':
             self.epsilon_p.append(epsilon)
             self.x0_epsilon_p.append(self.x0 - epsilon)
+            self.calculate_c_vector(istar,'p',if_append) #calculating c vector
         else:
             self.epsilon_p = [epsilon] 
             self.x0_epsilon_p = [self.x0 - epsilon] #since the method is a function, it has local variables
                                                 #BUT we can access global variables now with the instances
+            self.calculate_c_vector(istar,'p',if_append) #calculating c vector
               
     def GIO_abs_duality(self):
         ##Method that finds epsilon* according to the Absolute Duality Gap GIO Model##
@@ -224,8 +230,9 @@ class GIO():
         
         self.epsilon_a = [epsilon] #epsilon_a for absolute duality gap
         self.x0_epsilon_a = [self.x0 - epsilon]
-        #print("x_0-ep for absolute",self.x0 - epsilon)
-        #print("x0_epsilon_a:",self.x0_epsilon_a)
+        
+        ### Calculating the c vector ###
+        self.calculate_c_vector(istar,'a','F')
     
     def GIO_relative_duality(self):
         ##Method that finds epsilon* according to the Relative Duality Gap GIO Model##
@@ -244,6 +251,9 @@ class GIO():
         ### Storing Epsilon and x0-epsilon in Attributes ###
         self.epsilon_r = [epsilon]
         self.x0_epsilon_r = [self.x0 - epsilon]
+        
+        ### Calculating the c vector for the istar ###
+        self.calculate_c_vector(istar,'r','F')
     
     def GIO_all_measures(self):
         """This function runs all of the GIO models, including GIO_p
@@ -559,27 +569,22 @@ class GIO():
         ########### Calculating Rho_p Approximate ##############
         self.rho_p_approx = [1-(numerator/denominator)]
         
-        
-        
-        
-        
-        
-        
-
-        
-        
-            
-        
-        
-        
-        
-        
-        
-                   
-    ###################### To be continued methods/functions #################################    
-    def calculate_c(self):
-        print("Actually calculates the c vector.  Shouldnt be hard, just need to do it")
+    def calculate_c_vector(self,istar,gio_model,if_append):
+        ###Going to assume that istar has already been found for some 
+        ##Will be called by the other GIO functions
+        c_vector = self.A[istar,:]*(1/np.linalg.norm(self.A[istar,:],ord=1))
+        if gio_model == 'p':
+            if if_append=='T':
+                self.c_p.append(c_vector)
+            else:
+                self.c_p = [c_vector]                
+        elif gio_model == 'a':
+            self.c_a = [c_vector]
+        elif gio_model == 'r':
+            self.c_r == [c_vector]
     
+               
+    ###################### To be continued methods/functions #################################    
     
     def GIO_linear_solve(self,type_c_constraint,type_ep_constraint):
         print("This function will serve the purpose of producing epsilon values",\
