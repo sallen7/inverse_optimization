@@ -27,8 +27,8 @@ class TestGIO(unittest.TestCase):
         A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
         b = np.array([[10],[-6],[4],[-10]])
         x0 = np.array([[2.5],[3]])
-        self.example1Chan = GIO(A,b,x0)
-        self.ex1Chan_testingGIOallmethod = GIO(A,b,x0)
+        self.example1Chan = GIO(A,b,x0,4,2,'F')
+        self.ex1Chan_testingGIOallmethod = GIO(A,b,x0,4,2,'F')
     
     def test_GIO_p_2(self):
         self.example1Chan.GIO_p(2,'F')  #the methods are attached to the instances

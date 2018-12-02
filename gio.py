@@ -44,15 +44,37 @@ class GIO():
     #Doc Statement (Python book said we should include)
     "A class to find the c and epsilon values under different General Inverse Optimization (GIO) models"
     
-    def __init__(self,A,b,x0):  #start out with A, b, and x^0 (Chan et al. say they are "exogenously determined")
+    def __init__(self,Amat,bvec,x0,num_eqs,num_vars,if_pyomo_params):  #start out with A, b, and x^0 (Chan et al. say they are "exogenously determined")
         #Inputs: A,b,x0 (details below)
         #We assume A is a matrix, b is a column vector, and x0 is a column vector
         #We also (for now) assume that they are numpy matrices/arrays
         
+        if if_pyomo_params == 'T':  #means we are inputting param components 
+                                    #from the pyomo model
+                                    #Examples show A param matrices being created
+                                    #via function and having the traditional mxn form
+                                    #DO need numeric data in Amat
+            Anumpy = np.zeros((num_eqs,num_vars))
+            bnumpy = np.zeros((num_eqs,1))
+            ### We are passing in a pyomo.core.base.param.IndexedParam (and it does work!)
+            ### This means we will have to do some indexing manuvering
+            for i in range(1,num_eqs+1):  
+                bnumpy[i-1,0] = bvec[i] 
+                for j in range(1,num_vars+1):
+                    Anumpy[i-1,j-1] = Amat[i,j]
+            
+            ### Assigning to Attributes ###
+            self.A = Anumpy
+            self.b = bnumpy            
+        else: 
+            self.A = Amat
+            self.b = bvec       
+            
+            
         #Attributes: We generate A, b, and x0 attributes as well as a bunch of lists in which
         #to put things for methods later on
-        self.A = A
-        self.b = b
+        #self.A = Amat
+        #self.b = bvec
         self.x0 = x0 #loading the data into attributes
         self.epsilon_p = []
         self.epsilon_a = []
@@ -67,14 +89,7 @@ class GIO():
         self.rho_p = []
         self.rho_a = []
         self.rho_r = [] #rho exact under the various models
-        self.rho_p_approx = [] #rho approximate for the p norm GIO model
-                     
-    def change_x0(self,new_x0): 
-        #Method to change x0 (even though we can do with dot notation)
-        #Input: new_x0
-        #Output: None, assignment to x0 attribute
-        self.x0 = new_x0
-        
+        self.rho_p_approx = [] #rho approximate for the p norm GIO model        
         
     def i_star(self,A,b,x0,q):   
         ####This method finds the minimum distance projection of x^0 onto the hyperplanes that
