@@ -44,16 +44,29 @@ class GIO():
     #Doc Statement (Python book said we should include)
     "A class to find the c and epsilon values under different General Inverse Optimization (GIO) models"
     
-    def __init__(self,Amat,bvec,x0,num_eqs,num_vars,if_pyomo_params):  #start out with A, b, and x^0 (Chan et al. say they are "exogenously determined")
+    def __init__(self,Amat,bvec,x0,num_eqs=None,num_vars=None,if_pyomo_params='F'):  
+        #start out with A, b, and x^0 (Chan et al. say they are "exogenously determined")
         #Inputs: A,b,x0 (details below)
-        #We assume A is a matrix, b is a column vector, and x0 is a column vector
-        #We also (for now) assume that they are numpy matrices/arrays
+        
+        #We assume A is a matrix, b is a column vector, and x0 is a column vector UNLESS
+        #the if_pyomo_params argument is set to 'T' (which indicates that the data being
+        #passed into the initialization step are pyomo parameter components)
+        
+        #Either way, we assume x0 is a numpy array
+        
+        #IF this flag is set to 'T', then the user MUST provide num_eqs and num_vars
+        #parameter values
         
         if if_pyomo_params == 'T':  #means we are inputting param components 
                                     #from the pyomo model
                                     #Examples show A param matrices being created
                                     #via function and having the traditional mxn form
                                     #DO need numeric data in Amat
+#            if num_eqs==None | num_vars==None:
+#                print("Error: Need to provide num_eqs and num_vars parameters.",\
+#                      "Cannot create the GIO instance")
+#                return
+            
             Anumpy = np.zeros((num_eqs,num_vars))
             bnumpy = np.zeros((num_eqs,1))
             ### We are passing in a pyomo.core.base.param.IndexedParam (and it does work!)
@@ -61,6 +74,7 @@ class GIO():
             for i in range(1,num_eqs+1):  
                 bnumpy[i-1,0] = bvec[i] 
                 for j in range(1,num_vars+1):
+                    #pdb.set_trace()
                     Anumpy[i-1,j-1] = Amat[i,j]
             
             ### Assigning to Attributes ###

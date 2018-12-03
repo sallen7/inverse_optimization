@@ -7,28 +7,40 @@
 import numpy as np
 import unittest
 from gio import GIO #importing the GIO class for testing
+import pyomo.environ as pyo
 
 #########   Unit Test References   ######################
-#Inspired by: https://stackoverflow.com/questions/3302949/whats-the-best-way-to-assert-for-numpy-array-equality
-        #and https://stackoverflow.com/questions/10062954/valueerror-the-truth-value-of-an-array-with-more-than-one-element-is-ambiguous
-        
-        #For numpy in the future, might use this: https://docs.scipy.org/doc/numpy-1.13.0/reference/routines.testing.html
-        #https://docs.scipy.org/doc/numpy-1.15.1/reference/testing.html (numpy has its own assert methods, def useful for
-        #almost equal cases)
-
 
 #####   The Unit Test   #######
-class TestGIO(unittest.TestCase):
-    "Tests for GIO class"
+class TestGIO_(unittest.TestCase):
+    "Tests for GIO class when pass Pyomo Parameters"
     def setUp(self):
         """Generating one (or more) test instance(s) that can be shared among all of the 
         unit tests"""
-        ##### Data from Example 1 of Chan et al. Paper #####
+        ##### Creating a Pyomo Model from the data in Chan et al. Example 1 #####
         A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
-        b = np.array([[10],[-6],[4],[-10]])
+        #b = np.array([[10],[-6],[4],[-10]])
         x0 = np.array([[2.5],[3]])
-        self.example1Chan = GIO(A,b,x0)
-        self.ex1Chan_testingGIOallmethod = GIO(A,b,x0)
+        
+        test_model = pyo.ConcreteModel()
+        test_model.varindex = pyo.RangeSet(2)
+        test_model.numvars = pyo.Param(initialize=2)
+        test_model.eqindex = pyo.RangeSet(4)
+        test_model.numeqs = pyo.Param(initialize=4)
+        test_model.x = pyo.Var(test_model.varindex)
+        
+        ##### Importing the A and b as param objects #####
+        def A_mat_func(model,i,j):
+            return A[i-1,j-1]
+
+        test_model.Amat = pyo.Param(test_model.eqindex,test_model.varindex,rule=A_mat_func)
+        test_model.bvec = pyo.Param(test_model.eqindex,initialize={1:10,2:-6,3:4,4:-10})    
+        
+        ##### Creating the GIO Objects #####
+        self.example1Chan = GIO(test_model.Amat,test_model.bvec,x0,\
+                                4,2,'T')
+        self.ex1Chan_testingGIOallmethod = GIO(test_model.Amat,test_model.bvec,x0,\
+                                               4,2,'T')
     
     def test_GIO_p_2(self):
         self.example1Chan.GIO_p(2,'F')  #the methods are attached to the instances
@@ -77,10 +89,4 @@ class TestGIO(unittest.TestCase):
         
 
 unittest.main() #to run the unittest stuff in the file
-        
-        
-        
-        
-        
-        
-        
+
