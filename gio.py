@@ -600,7 +600,6 @@ class GIO():
             self.c_r == [c_vector]
     
     def GIO_structural_epsilon_setup(self):
-        print("Setting up the new istar")
         #Can only create one model at a time
         #p-norm doesn't matter right now        
         
@@ -653,10 +652,7 @@ class GIO():
         ##### Objective Function & Solution #####
         ##This will depend upon the norm we are imposing.##
         
-        #####FINISH TOMORROW: Need to add in a vector to hold all the objective
-        ###function values and then the minimum one corresponds to the 
-        ###hyperplane that goes with c opt (need to calculate that too)
-        
+        #####FINISH TOMORROW:         
         ###Also need to leave room for possibility of infeasibility - would
         ##an error just get thrown???
         
@@ -667,41 +663,40 @@ class GIO():
         ##And MIGHT look into making a small "structural epsilon" thing and seeing
         ##what happens - I think I can check it geometrically
         
-        ###FINALLY need to make the workflow clear to the user in the user guide
-        
+        (dim1,dim2) = np.shape(self.A) #getting the dimensions of A
+        container_for_obj_vals = np.zeros((dim1,)) #since dim1 represents the number of equations
         
         if isinstance(p,str)==True:
             p = 'inf' #making sure that, if a string was passed in for p, then 
                     #we are finding the infinity norm
         
+        #################### Finding the ep^i for GIO_struc_ep ######################## 
         
         if p==2:
             def obj_rule_p2(model): #worked with "self" as well
                 return pyo.sqrt( sum(model.ep[j]**2 for j in range(1,model.numvars+1)) )
-            convex_prog.obj = pyo.Objective(rule=obj_rule_p2)
+            self.GIO_struc_ep.obj = pyo.Objective(rule=obj_rule_p2)
             solver = SolverFactory('ipopt') #need nonlinear because of the 
                                     #objective function
             
         ############ Solving the Convex Progs #############
         #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
         #https://projects.coin-or.org/Ipopt/ticket/205
-            sum_of_epsilons = 0
-            #solver = SolverFactory('ipopt')
+                        
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
-                for i in range(1,convex_prog.numvars+1):
-                    convex_prog.ep[i] = 0.01 #have to give interior point algorithm a non-zero starting place
+                for i in range(1,self.GIO_struc_ep.numvars+1):
+                    self.GIO_struc_ep.ep[i] = 0.01 #have to give interior point algorithm a non-zero starting place
                 
-                convex_prog.equal_constraint[index].activate() #activating relevant equality constraint
-                solver.solve(convex_prog)
-                #print("Objective function value is",pyo.value(convex_prog.obj))
-                sum_of_epsilons = sum_of_epsilons + pyo.value(convex_prog.obj)
-                convex_prog.equal_constraint[index].deactivate()
+                self.GIO_struc_ep.equal_constraint[index].activate() #activating relevant equality constraint
+                solver.solve(self.GIO_struc_ep)
+                container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
+                self.GIO_struc_ep.equal_constraint[index].deactivate()
         elif p==1:
             ###Since there are absolute values in the objective function for the L1 norm, we need to do a 
             ##transformation that will actually linearize the problem.
             #See documentation/chapter for references on this
-            convex_prog.u = pyo.Var(convex_prog.varindex) #variables to replace x in the objective func
+            self.GIO_struc_ep.u = pyo.Var(convex_prog.varindex) #variables to replace x in the objective func
             
             ##Two rules to establish the extra constraints
             ##ConstraintList didn't like the convex_prog.varindex, hence
@@ -712,42 +707,39 @@ class GIO():
             def extra_abs_val_constraints_part2(model,i):
                 return -1*model.ep[i] <= model.u[i]
             
-            convex_prog.abs_val_constraints_part1 = pyo.Constraint(\
-                                convex_prog.varindex,\
+            self.GIO_struc_ep.abs_val_constraints_part1 = pyo.Constraint(\
+                                self.GIO_struc_ep.varindex,\
                                 rule=extra_abs_val_constraints_part1)
-            convex_prog.abs_val_constraints_part2 = pyo.Constraint(\
-                                convex_prog.varindex,\
+            self.GIO_struc_ep.abs_val_constraints_part2 = pyo.Constraint(\
+                                self.GIO_struc_ep.varindex,\
                                 rule=extra_abs_val_constraints_part2)
             
             ###Defining the Objective Function###
             def obj_rule_p1(model):
                 return sum(model.u[j] for j in range(1,model.numvars+1))
-            convex_prog.obj = pyo.Objective(rule=obj_rule_p1)
+            self.GIO_struc_ep.obj = pyo.Objective(rule=obj_rule_p1)
             solver = SolverFactory('glpk') #we have a linear program now
                             #due to the transformation, so we can use an LP solver
             
-            #pdb.set_trace() #Looks like everything is good
             ############ Solving the Convex Progs #############
             #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
             #https://projects.coin-or.org/Ipopt/ticket/205
-            sum_of_epsilons = 0
-            #solver = SolverFactory('ipopt')
+            
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
-                for i in range(1,convex_prog.numvars+1):
-                    convex_prog.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
+                for i in range(1,self.GIO_struc_ep.numvars+1):
+                    self.GIO_struc_ep.u[i] = 0.01 
                 
-                convex_prog.equal_constraint[index].activate() #activating relevant equality constraint
-                solver.solve(convex_prog)
-                #print("Objective function value is",pyo.value(convex_prog.obj))
-                sum_of_epsilons = sum_of_epsilons + pyo.value(convex_prog.obj)
-                convex_prog.equal_constraint[index].deactivate()
+                self.GIO_struc_ep.equal_constraint[index].activate() #activating relevant equality constraint
+                solver.solve(self.GIO_struc_ep)
+                container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
+                self.GIO_struc_ep.equal_constraint[index].deactivate()
         
         elif p=='inf': #we have the infinity norm
             #### Similar to the p=1 norm, we have to do a transformation to convert the 
             ## max{|x_1|,...,|x_n|} into a linear form
             ## See documentation for notes on this
-            convex_prog.t = pyo.Var([1]) #hopefully this produces one variable - NEED TO CHECK THIS!
+            self.GIO_struc_ep.t = pyo.Var([1]) #hopefully this produces one variable - NEED TO CHECK THIS!
             
             ## Two rules to establish the extra constraints
             def extra_inf_norm_constraints_part1(model,i):
@@ -756,42 +748,99 @@ class GIO():
             def extra_inf_norm_constraints_part2(model,i):
                 return -1*model.ep[i] <= model.t[1]
             
-            convex_prog.max_absval_constraints_part1 = pyo.Constraint(\
-                                convex_prog.varindex,\
+            self.GIO_struc_ep.max_absval_constraints_part1 = pyo.Constraint(\
+                                self.GIO_struc_ep.varindex,\
                                 rule=extra_inf_norm_constraints_part1)
-            convex_prog.max_absval_constraints_part2 = pyo.Constraint(\
-                                convex_prog.varindex,\
+            self.GIO_struc_ep.max_absval_constraints_part2 = pyo.Constraint(\
+                                self.GIO_struc_ep.varindex,\
                                 rule=extra_inf_norm_constraints_part2)
             
             ########## Defining the Objective Function #########
             def obj_rule_p_inf(model):
                 return model.t[1]
-            convex_prog.obj = pyo.Objective(rule=obj_rule_p_inf)
+            self.GIO_struc_ep.obj = pyo.Objective(rule=obj_rule_p_inf)
             solver = SolverFactory('glpk') #we have a linear program now
                             #due to the transformation, so we can use an LP solver
             
             ############ Solving the Convex Progs #############
             #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
             #https://projects.coin-or.org/Ipopt/ticket/205
-            sum_of_epsilons = 0
+            
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
                 #### Don't think we need these two lines (plus dont have a u any more)####
                 #for i in range(1,convex_prog.numvars+1):
                 #    convex_prog.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
-                convex_prog.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
-                convex_prog.equal_constraint[index].activate() #activating relevant equality constraint
-                solver.solve(convex_prog)
-                #print("Objective function value is",pyo.value(convex_prog.obj))
-                sum_of_epsilons = sum_of_epsilons + pyo.value(convex_prog.obj)
-                convex_prog.equal_constraint[index].deactivate()
+                self.GIO_struc_ep.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
+                self.GIO_struc_ep.equal_constraint[index].activate() #activating relevant equality constraint
+                solver.solve(self.GIO_struc_ep)
+                
+                container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
+                self.GIO_struc_ep.equal_constraint[index].deactivate()
         else:
             print("Error with entered p value")
             return
         
+        ####### Find the Minimal Element in the Set #########  
+        ###We will call this istar_struc because this is the GIO_struct_ep model
+        (istar_struc,) = np.where(container_for_obj_vals == container_for_obj_vals.min()) #remember indexes from 0
         
+        if np.size(istar_struc) > 1:
+            print("Under the",q,"dual norm, x^0 has been projected onto multiple",\
+                  "hyperplanes.  For now, we will choose the first i index",\
+                  "and will put the rest of the indices in the istar_multi",\
+                  "attribute.")
+            self.istar_multi = [istar_struc] #replaces previous istar ()
+            istar_struc = istar_struc[0] #picking the istar 
+        else:
+            istar_struc = istar_struc[0] #because istar is coming back as an array when we
+                            #want it to be an index
         
+        ##################### Solve the Mathematical Program One More Time #########################
+        if p==2:
+            solver = SolverFactory('ipopt')
+            for i in range(1,self.GIO_struc_ep.numvars+1):
+                self.GIO_struc_ep.ep[i] = 0.01 #have to give interior point algorithm a non-zero starting place
+                
+            self.GIO_struc_ep.equal_constraint[istar_struc].activate() #activating relevant equality constraint
+            solver.solve(self.GIO_struc_ep)
+            
+            ####Obtaining the Values for the Epsilon Vector#####
+            epsilon = np.array((dim2,1)) #since dim2 is the number of variables
+            for i in range(1,dim2+1): #since pyomo models and python are on different indexing systems
+                epsilon[i-1,0] = self.GIO_struc_ep.ep[i]                
+            
+        elif p==1:
+            solver = SolverFactory('glpk')
+            for i in range(1,self.GIO_struc_ep.numvars+1):
+                self.GIO_struc_ep.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
+                
+            self.GIO_struc_ep.equal_constraint[istar_struc].activate() #activating relevant equality constraint
+            solver.solve(self.GIO_struc_ep)
+            ####Obtaining the Values for the Epsilon Vector#####
+            epsilon = np.array((dim2,1)) #since dim2 is the number of variables
+            for i in range(1,dim2+1): #since pyomo models and python are on different indexing systems
+                epsilon[i-1,0] = self.GIO_struc_ep.ep[i]            
+            
+        elif p=='inf':
+            solver = SolverFactory('glpk')
+            self.GIO_struc_ep.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
+            
+            self.GIO_struc_ep.equal_constraint[istar_struc].activate() #activating relevant equality constraint
+            solver.solve(self.GIO_struc_ep)
+            
+            ####Obtaining the Values for the Epsilon Vector#####
+            epsilon = np.array((dim2,1)) #since dim2 is the number of variables
+            for i in range(1,dim2+1): #since pyomo models and python are on different indexing systems
+                epsilon[i-1,0] = self.GIO_struc_ep.ep[i]            
         
+        ########## Storing Things in Attributes ###########
+        self.epsilon_p = [epsilon]
+        self.x0_epsilon_p = [self.x0 - epsilon]
+        
+        ########## Calculating the Rho Part #################
+        #COME BACK TO HERE
+               
         
                
     ###################### To be continued methods/functions #################################    
