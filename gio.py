@@ -84,7 +84,6 @@ class GIO():
             self.A = Amat
             self.b = bvec       
             
-            
         #Attributes: We generate A, b, and x0 attributes as well as a bunch of lists in which
         #to put things for methods later on
         #self.A = Amat
@@ -232,6 +231,7 @@ class GIO():
         
         #######  Storing the Epsilon* as an Attribute &  #######
         #######         Calculating the c vector         #######
+        
         if if_append == 'T':
             self.epsilon_p.append(epsilon)
             self.x0_epsilon_p.append(self.x0 - epsilon)
@@ -283,6 +283,7 @@ class GIO():
         self.x0_epsilon_r = [self.x0 - epsilon]
         
         ### Calculating the c vector for the istar ###
+        #pdb.set_trace()
         self.calculate_c_vector(istar,'r','F')
     
     def GIO_all_measures(self):
@@ -602,16 +603,21 @@ class GIO():
     def calculate_c_vector(self,istar,gio_model,if_append):
         ###Going to assume that istar has already been found for some 
         ##Will be called by the other GIO functions
+        ##self.calculate_c_vector(istar,'r','F')
+        
         c_vector = self.A[istar,:]*(1/np.linalg.norm(self.A[istar,:],ord=1))
+        ###Want to output a column numpy vector###
+        c_vector = np.reshape(c_vector,(np.size(c_vector),1))
+        #ratios = np.reshape(ratios,(np.size(ratios),))
         if gio_model == 'p':
-            if if_append=='T':
+            if if_append =='T':
                 self.c_p.append(c_vector)
             else:
                 self.c_p = [c_vector]                
         elif gio_model == 'a':
             self.c_a = [c_vector]
         elif gio_model == 'r':
-            self.c_r == [c_vector]
+            self.c_r = [c_vector]
     
     def GIO_structural_epsilon_setup(self):
         #Can only create one model at a time
