@@ -712,7 +712,7 @@ class GIO():
             ###Since there are absolute values in the objective function for the L1 norm, we need to do a 
             ##transformation that will actually linearize the problem.
             #See documentation/chapter for references on this
-            self.GIO_struc_ep.u = pyo.Var(convex_prog.varindex) #variables to replace x in the objective func
+            self.GIO_struc_ep.u = pyo.Var(self.GIO_struc_ep.varindex) #variables to replace x in the objective func
             
             ##Two rules to establish the extra constraints
             ##ConstraintList didn't like the convex_prog.varindex, hence
@@ -867,8 +867,27 @@ class GIO():
         
         ########## Calculating c ##########
         self.calculate_c_vector(istar_struc,'p','F') #so the c will be put in the c_p attribute              
-               
+    
+    def GIO_structural_c_setup(self):
+        print("add stuff") #only doing the absolute duality gap model
+        #IMPORTANT CAVEAT: ONLY BECOMES LP WHEN C IS RESTRICTED TO BE POSITIVE (since can
+        #just put combo of c>=0 and sum of c elements = 1 (with no absolute value bars))
+        A = self.A #copying to local variable because the local object "self" calls could get weird
+        b = self.b
+        x0 = self.x0
+        (dim1,dim2) = np.shape(A) #getting the dimensions for the variable sets
         
+        ########## Generating the Model ###########
+        lin_prog = pyo.ConcreteModel()
+        lin_prog.numvars = pyo.Param(initialize=dim2)
+        lin_prog.numeqs = pyo.Param(initialize=dim1)
+        lin_prog.varindex = pyo.RangeSet(1,dim2)
+        lin_prog.Arowindex = pyo.RangeSet(1,dim1)
+        lin_prog.ep = pyo.Var(convex_prog.varindex)
+        
+    
+    def GIO_structural_c_solve(self):           
+        print("working on, in development")
                
     ###################### To be continued methods/functions #################################    
     
