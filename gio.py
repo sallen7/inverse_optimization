@@ -676,9 +676,6 @@ class GIO():
         ###Also need to leave room for possibility of infeasibility - would
         ##an error just get thrown???
         
-        ###Also do rho calculation as well (since with the vector we will have
-        ###the e* and e^i values for the epsilon values we have chosen)
-        
         ###Then do the unit testing with the regular problem (under the 3 p-norms)
         ##And MIGHT look into making a small "structural epsilon" thing and seeing
         ##what happens - I think I can check it geometrically
@@ -698,11 +695,10 @@ class GIO():
             self.GIO_struc_ep.obj = pyo.Objective(rule=obj_rule_p2)
             solver = SolverFactory('ipopt') #need nonlinear because of the 
                                     #objective function
-            
+            #pdb.set_trace()
         ############ Solving the Convex Progs #############
         #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
         #https://projects.coin-or.org/Ipopt/ticket/205
-                        
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
                 for i in range(1,self.GIO_struc_ep.numvars+1):
@@ -806,7 +802,7 @@ class GIO():
         (istar_struc,) = np.where(container_for_obj_vals == container_for_obj_vals.min()) #remember indexes from 0
         
         if np.size(istar_struc) > 1:
-            print("Under the",q,"dual norm, x^0 has been projected onto multiple",\
+            print("Under the dual norm, x^0 has been projected onto multiple",\
                   "hyperplanes.  For now, we will choose the first i index",\
                   "and will put the rest of the indices in the istar_multi",\
                   "attribute.")
@@ -816,50 +812,61 @@ class GIO():
             istar_struc = istar_struc[0] #because istar is coming back as an array when we
                             #want it to be an index
         
+        #pdb.set_trace()
         ##################### Solve the Mathematical Program One More Time #########################
         if p==2:
             solver = SolverFactory('ipopt')
             for i in range(1,self.GIO_struc_ep.numvars+1):
                 self.GIO_struc_ep.ep[i] = 0.01 #have to give interior point algorithm a non-zero starting place
                 
-            self.GIO_struc_ep.equal_constraint[istar_struc].activate() #activating relevant equality constraint
+            self.GIO_struc_ep.equal_constraint[istar_struc+1].activate() #activating relevant equality constraint
+                                                    #NEED that + 1 because python indexes from 0 and pyomo indexes
+                                                    #from 1
             solver.solve(self.GIO_struc_ep)
             
             ####Obtaining the Values for the Epsilon Vector#####
-            epsilon = np.array((dim2,1)) #since dim2 is the number of variables
+            epsilon = np.zeros((dim2,1)) #since dim2 is the number of variables
+            #pdb.set_trace()
             for i in range(1,dim2+1): #since pyomo models and python are on different indexing systems
-                epsilon[i-1,0] = self.GIO_struc_ep.ep[i]                
+                epsilon[i-1,0] = self.GIO_struc_ep.ep[i].value                
             
         elif p==1:
             solver = SolverFactory('glpk')
             for i in range(1,self.GIO_struc_ep.numvars+1):
                 self.GIO_struc_ep.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
                 
-            self.GIO_struc_ep.equal_constraint[istar_struc].activate() #activating relevant equality constraint
+            self.GIO_struc_ep.equal_constraint[istar_struc+1].activate() #activating relevant equality constraint
             solver.solve(self.GIO_struc_ep)
             ####Obtaining the Values for the Epsilon Vector#####
-            epsilon = np.array((dim2,1)) #since dim2 is the number of variables
+            epsilon = np.zeros((dim2,1)) #since dim2 is the number of variables
             for i in range(1,dim2+1): #since pyomo models and python are on different indexing systems
-                epsilon[i-1,0] = self.GIO_struc_ep.ep[i]            
+                epsilon[i-1,0] = self.GIO_struc_ep.ep[i].value            
             
         elif p=='inf':
             solver = SolverFactory('glpk')
             self.GIO_struc_ep.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
             
-            self.GIO_struc_ep.equal_constraint[istar_struc].activate() #activating relevant equality constraint
+            self.GIO_struc_ep.equal_constraint[istar_struc+1].activate() #activating relevant equality constraint
             solver.solve(self.GIO_struc_ep)
             
             ####Obtaining the Values for the Epsilon Vector#####
-            epsilon = np.array((dim2,1)) #since dim2 is the number of variables
+            epsilon = np.zeros((dim2,1)) #since dim2 is the number of variables
             for i in range(1,dim2+1): #since pyomo models and python are on different indexing systems
-                epsilon[i-1,0] = self.GIO_struc_ep.ep[i]            
+                epsilon[i-1,0] = self.GIO_struc_ep.ep[i].value            
         
+        #pdb.set_trace()
         ########## Storing Things in Attributes ###########
         self.epsilon_p = [epsilon]
         self.x0_epsilon_p = [self.x0 - epsilon]
         
         ########## Calculating the Rho Part #################
-        #COME BACK TO HERE
+        #istar_struc, container_for_obj_vals
+        #we can just use the container_for_obj_vals to calculate rho
+        rho_struc = 1-( container_for_obj_vals[istar_struc]/(np.sum(container_for_obj_vals)*(1/dim1)) )
+        self.rho_p = [rho_struc] #storing in the rho_p (there is no rho_approx)
+        
+        ########## Calculating c ##########
+        self.calculate_c_vector(istar_struc,'p','F') #so the c will be put in the c_p attribute              
                
         
                
