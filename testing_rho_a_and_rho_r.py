@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt #http://www.scipy-lectures.org/intro/matplotlib/
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory #page 43 of the Oct 2018 documentation
 from gio import GIO
+#from testing_rho_p import generate_rho_p
 #from joblib import Parallel, delayed #for parallelization
 
 ##################### Data ############################### 
@@ -14,30 +15,11 @@ A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
 b = np.array([[10],[-6],[4],[-10]])
 x0 = np.array([[2.5],[3]])
 
-#### Just testing that Methods Run for One Point ####
-#testmod = GIO(A,b,x0)
-#testmod.calculate_rho_p('inf','F')
-#print("This is testmod rho_p p=inf",testmod.rho_p)
-
-#p=1: [0.54929577464788737]
-#p=2:  [0.56450853266162038]
-#p=inf: [0.58974358974358942] #they are diff numbers
-
-#testmod.calculate_rho_a()
-#print("This is testmod rho_a:",testmod.rho_a)
-#rho_a: [0.58208955223880599] (I think it makes sense that decently similar to
-#p=inf)
-
-#testmod.calculate_rho_r()
-#print("This is testmod rho_r:",testmod.rho_r)
-#rho_r: [array([ 0.68421053])]  -> this is a bit higher than the others
-
-
 ################ Generating the Heat Map ###############################
 
 ##### Set Up #####
 time_0 = time.clock()
-density = 20
+density = 70
 type_duality = 'r' #'a' or 'r'
 half_dense = int(density/2)
 x_vals = np.linspace(0,5,density)
@@ -87,7 +69,7 @@ for i in range(0,density):
 #https://matplotlib.org/gallery/shapes_and_collections/scatter.html#sphx-glr-gallery-shapes-and-collections-scatter-py
 #https://matplotlib.org/api/_as_gen/matplotlib.pyplot.scatter.html
 
-colormap_option = plt.cm.get_cmap('RdYlBu') 
+colormap_option = plt.cm.get_cmap('rainbow') 
 rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z,vmin=0,vmax=1,cmap=colormap_option)
 plt.colorbar(rho_map)
 plt.xlabel('x_1')
@@ -103,3 +85,13 @@ print(time_1) #Took 76 seconds for density of 30 (with no loop unrolling)
         
 plt.show() #want the graphic to show after the time gets recorded
             #need a way for this to work in Jupyter
+            
+####Testing the Rho_approx_inf matrix against the Absolute Duality Matrix####
+if type_duality == 'a':
+    mesh_z_inf_rho_approx = np.load('inf_norm_rho_approx_mesh.npy')
+    diff_between = mesh_z_inf_rho_approx - mesh_z
+    print("This is the 1 norm of the difference:",np.linalg.norm(diff_between,ord=1))
+    print("This is the 2 norm of the difference:",np.linalg.norm(diff_between,ord=2))
+    print("This is the inf norm of the difference:",np.linalg.norm(diff_between,ord=np.inf))
+
+            

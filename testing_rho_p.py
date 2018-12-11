@@ -135,6 +135,10 @@ plt.show() #want the graphic to show after the time gets recorded
             #need a way for this to work in Jupyter
 
 
+####Saving Numpy Array for rho_r Validation#####
+
+#if p == 'inf':
+#    np.save('inf_norm_rho_approx_mesh.npy',mesh_z_approx)
 
 
 ##########################################################################

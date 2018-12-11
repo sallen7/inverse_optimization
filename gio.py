@@ -30,6 +30,7 @@ import pdb #for debugging
 import numpy as np                     
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory #page 43 of the Oct 2018 documentation
+from pyomo.opt import SolverStatus, TerminationCondition
 import pyomo.kernel as pyok #to differentiate from pyomo.environment
                             #if I want to work from the lower level functionality
                             #of pyomo, I need to work in the kernel
@@ -161,7 +162,7 @@ class GIO():
         return istar,min_ratio
     
     
-    def GIO_p(self,p,if_append): 
+    def GIO_p(self,p,if_append='F'): 
         "A method that computes GIO according to the p-norm"
         "Input: The p indicates the norm (we only support 1,2, or infinity norms)"
         """The if_append argument indicates whether or not we want to replace any epsilon 
@@ -296,7 +297,7 @@ class GIO():
         self.GIO_relative_duality()
     
             
-    def calculate_rho_p(self,p,if_append):
+    def calculate_rho_p(self,p,if_append='F'):
         ### This function calculates the goodness-of-fit/coefficient of complementarity metric
         ## under the p-norm 
         
@@ -320,7 +321,7 @@ class GIO():
             epsilon_star = np.linalg.norm(epsilon_star[0],ord=p) #because it is in a list, need to index into the list
         
         ##### Need to Account for when we are too close to the boarder of the Feasible Region #####
-        if epsilon_star < 1e-8: #Need to exit the function 
+        if epsilon_star < 1e-12: #Need to exit the function 
             if if_append == 'T':
                 self.rho_p.append(1) #rho would be 1 because if exactly on the boundary then you
                                     #are in X^{OPT}, the ultimate sign of 'fit'
@@ -496,7 +497,7 @@ class GIO():
                                                                     #that was calculated with .i_star(self.A,self.b,self.x0,1)
                 
         ##### Need to Account for when we are too close to the boarder of the Feasible Region #####
-        if normed_epsilon_star_a < 1e-8: #Need to exit the function 
+        if normed_epsilon_star_a < 1e-12: #Need to exit the function 
             self.rho_a = [1] #rho would be 1 because if exactly on the boundary then you
                         #are in X^{OPT}, the ultimate sign of 'fit'
             return 
@@ -530,7 +531,7 @@ class GIO():
         numerator = np.absolute( (np.dot(self.A[istar,:],self.x0)*(1/self.b[istar,0])) - 1)
         
         ### Need to Account for when we are too close to the boarder of the Feasible Region ###
-        if numerator < 1e-8: #Need to exit the function 
+        if numerator < 1e-12: #Need to exit the function 
             self.rho_r = [1] #rho would be 1 because if exactly on the boundary then you
                         #are in X^{OPT}, the ultimate sign of 'fit'
             return 
@@ -564,7 +565,7 @@ class GIO():
             numerator = np.linalg.norm(self.epsilon_p[0],ord=p)
         
         ### Need to Account for when we are too close to the boarder of the Feasible Region ###
-        if numerator < 1e-8: #Need to exit the function 
+        if numerator < 1e-12: #Need to exit the function 
             self.rho_p_approx = [1] #rho would be 1 because if exactly on the boundary then you
                         #are in X^{OPT}, the ultimate sign of 'fit'
             return 
@@ -652,33 +653,15 @@ class GIO():
         convex_prog.equal_constraint = pyo.Constraint(convex_prog.Arowindex,rule=equal_rule) #assuming that we are Pyomo indexing
         convex_prog.equal_constraint.deactivate() # we will only activate the equality constraint
                                                 #that is relevant to the given solve
-            
-#        ##### Calculating the Rho #####
-#        average_of_epsilons = (1/dim1)*(sum_of_epsilons) 
-#        rho = 1 - (epsilon_star/average_of_epsilons)
-#        
-#        if if_append == 'T':
-#            self.rho_p.append(rho)
-#        else:
-#            self.rho_p = [rho]
-        
+                    
         #### Putting the Model in Right Attribute ####
         self.GIO_struc_ep = convex_prog
         
         
-    def GIO_structural_epsilon_solve(self,p):
-        #Do we want to also calculate rho while we are at it?  This can be a more
-        #canned routine that we are providing to users (like the PH algorithm)
+    def GIO_structural_epsilon_solve(self,p,bigM=1984000):
+        
         ##### Objective Function & Solution #####
         ##This will depend upon the norm we are imposing.##
-        
-        #####FINISH TOMORROW:         
-        ###Also need to leave room for possibility of infeasibility - would
-        ##an error just get thrown???
-        
-        ###Then do the unit testing with the regular problem (under the 3 p-norms)
-        ##And MIGHT look into making a small "structural epsilon" thing and seeing
-        ##what happens - I think I can check it geometrically
         
         (dim1,dim2) = np.shape(self.A) #getting the dimensions of A
         container_for_obj_vals = np.zeros((dim1,)) #since dim1 represents the number of equations
@@ -705,8 +688,16 @@ class GIO():
                     self.GIO_struc_ep.ep[i] = 0.01 #have to give interior point algorithm a non-zero starting place
                 
                 self.GIO_struc_ep.equal_constraint[index].activate() #activating relevant equality constraint
-                solver.solve(self.GIO_struc_ep)
-                container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
+                results = solver.solve(self.GIO_struc_ep)
+                #### Checking for Feasibility ####
+                if str(results.solver.termination_condition) == "infeasible":
+                    print("We have infeasibility for constraint=",str(index-1),".  Putting bigM in the ",\
+                          "container_for_obj_vals vector")
+                    container_for_obj_vals[index-1] = bigM
+                else: 
+                    container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
+                
+                #### Deactivating the Constraint we Needed to Deactivate ####
                 self.GIO_struc_ep.equal_constraint[index].deactivate()
         elif p==1:
             ###Since there are absolute values in the objective function for the L1 norm, we need to do a 
@@ -747,8 +738,17 @@ class GIO():
                     self.GIO_struc_ep.u[i] = 0.01 
                 
                 self.GIO_struc_ep.equal_constraint[index].activate() #activating relevant equality constraint
-                solver.solve(self.GIO_struc_ep)
-                container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
+                results = solver.solve(self.GIO_struc_ep)
+                #### Checking for Feasibility ####
+                if str(results.solver.termination_condition) == "infeasible":
+                    print("We have infeasibility for constraint=",str(index-1),".  Putting bigM in the ",\
+                          "container_for_obj_vals vector")
+                    container_for_obj_vals[index-1] = bigM
+                else: 
+                    container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
+                
+                #solver.solve(self.GIO_struc_ep)
+                #container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
                 self.GIO_struc_ep.equal_constraint[index].deactivate()
         
         elif p=='inf': #we have the infinity norm
@@ -789,17 +789,31 @@ class GIO():
                 #    convex_prog.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
                 self.GIO_struc_ep.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
                 self.GIO_struc_ep.equal_constraint[index].activate() #activating relevant equality constraint
-                solver.solve(self.GIO_struc_ep)
-                
-                container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
+                results = solver.solve(self.GIO_struc_ep)
+                #### Checking for Feasibility ####
+                if str(results.solver.termination_condition) == "infeasible":
+                    print("We have infeasibility for constraint=",str(index-1),".  Putting bigM in the ",\
+                          "container_for_obj_vals vector")
+                    container_for_obj_vals[index-1] = bigM
+                else: 
+                    container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)                
+                #solver.solve(self.GIO_struc_ep)
+                #container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
                 self.GIO_struc_ep.equal_constraint[index].deactivate()
         else:
             print("Error with entered p value")
             return
-        
+    
         ####### Find the Minimal Element in the Set #########  
         ###We will call this istar_struc because this is the GIO_struct_ep model
-        (istar_struc,) = np.where(container_for_obj_vals == container_for_obj_vals.min()) #remember indexes from 0
+        
+        ##Need to first do a feasibility check##
+        if container_for_obj_vals.min() == bigM:
+            print("Error, entire problem infeasible")
+            return 
+        
+        ########### Finding istar ###########
+        (istar_struc,) = np.where(container_for_obj_vals == container_for_obj_vals.min()) #remember indexes from 0        
         
         if np.size(istar_struc) > 1:
             print("Under the dual norm, x^0 has been projected onto multiple",\
@@ -862,34 +876,47 @@ class GIO():
         ########## Calculating the Rho Part #################
         #istar_struc, container_for_obj_vals
         #we can just use the container_for_obj_vals to calculate rho
-        rho_struc = 1-( container_for_obj_vals[istar_struc]/(np.sum(container_for_obj_vals)*(1/dim1)) )
+        ###Need to do specialized sum in case of those infeasible values###
+        sum_of_obj_vals = 0
+        num_feasible = 0
+        for i in range(dim1):
+            if container_for_obj_vals[i] == bigM:
+                continue
+            else:
+                sum_of_obj_vals = sum_of_obj_vals + container_for_obj_vals[i]
+                num_feasible = num_feasible + 1
+            
+        rho_struc = 1-( container_for_obj_vals[istar_struc]/(sum_of_obj_vals*(1/num_feasible)) )
         self.rho_p = [rho_struc] #storing in the rho_p (there is no rho_approx)
         
         ########## Calculating c ##########
         self.calculate_c_vector(istar_struc,'p','F') #so the c will be put in the c_p attribute              
     
+    
+    ###################### To be continued methods/functions ################################# 
+    
     def GIO_structural_c_setup(self):
-        print("add stuff") #only doing the absolute duality gap model
+        print("working on, in development") #only doing the absolute duality gap model
         #IMPORTANT CAVEAT: ONLY BECOMES LP WHEN C IS RESTRICTED TO BE POSITIVE (since can
         #just put combo of c>=0 and sum of c elements = 1 (with no absolute value bars))
-        A = self.A #copying to local variable because the local object "self" calls could get weird
-        b = self.b
-        x0 = self.x0
-        (dim1,dim2) = np.shape(A) #getting the dimensions for the variable sets
-        
-        ########## Generating the Model ###########
-        lin_prog = pyo.ConcreteModel()
-        lin_prog.numvars = pyo.Param(initialize=dim2)
-        lin_prog.numeqs = pyo.Param(initialize=dim1)
-        lin_prog.varindex = pyo.RangeSet(1,dim2)
-        lin_prog.Arowindex = pyo.RangeSet(1,dim1)
-        lin_prog.ep = pyo.Var(convex_prog.varindex)
+#        A = self.A #copying to local variable because the local object "self" calls could get weird
+#        b = self.b
+#        x0 = self.x0
+#        (dim1,dim2) = np.shape(A) #getting the dimensions for the variable sets
+#        
+#        ########## Generating the Model ###########
+#        lin_prog = pyo.ConcreteModel()
+#        lin_prog.numvars = pyo.Param(initialize=dim2)
+#        lin_prog.numeqs = pyo.Param(initialize=dim1)
+#        lin_prog.varindex = pyo.RangeSet(1,dim2)
+#        lin_prog.Arowindex = pyo.RangeSet(1,dim1)
+#        lin_prog.ep = pyo.Var(convex_prog.varindex)
         
     
     def GIO_structural_c_solve(self):           
         print("working on, in development")
                
-    ###################### To be continued methods/functions #################################    
+       
     
     def GIO_linear_solve(self,type_c_constraint,type_ep_constraint):
         print("This function will serve the purpose of producing epsilon values",\
@@ -900,22 +927,7 @@ class GIO():
         #Useful for when the closed form solution breaks down
         #Will need to generate an actual Pyomo model and do a linear solve.  
         #OR if users pass in a Pyomo model, then will need to figure out what to do
-        
-    def change_projection(self):
-        print("This function will allow users to project onto a different",
-              "hyperplane if there are multiple istar and the user wants to see another.",\
-              "It will require that multi_istar be nonempty and the user would need to",\
-              "specify from which GIO model the multi istar model came so that we can",\
-              "update the appropriate attributes. Would need to call calculate_c")
-        #Dr. Goldstein brought up an interesting point that being projected onto multiple
-        #hyperplanes would likely be an "unstable" solution - in that if we move x0 just
-        #a bit, then it wouldn't really matter
-        
-        #The c vector and the resulting decisions might matter though - this is where
-        #rho would probably come into play as well
-        
-        #Need to read about the use of rho, epsilon, and c TOGETHER
-        
+            
         
             
             

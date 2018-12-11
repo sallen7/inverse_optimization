@@ -78,16 +78,16 @@ class TestGIO_Structural_Ep(unittest.TestCase):
         #WOULD NEED FEASIBILITY (WHICH THE METHOD FORCES)
         self.example1Chan.GIO_structural_epsilon_setup()
         def ep_constraint(model):  #should provide the details of the index sets and the numvar parameters
-            return model.ep[1] >= model.ep[2] #specifically did not ID the epsilon as nonnegative in gio.py
+            return model.ep[1] <= model.ep[2] #specifically did not ID the epsilon as nonnegative in gio.py
         self.example1Chan.GIO_struc_ep.constraint_ep = pyo.Constraint(rule=ep_constraint)
         def non_neg_ep(model,i):
-            return model.ep[i] >= 0
+            return model.ep[i] <= 0
         self.example1Chan.GIO_struc_ep.non_neg_ep = pyo.Constraint(\
                                                     self.example1Chan.GIO_struc_ep.varindex,rule=non_neg_ep)
         
         self.example1Chan.GIO_structural_epsilon_solve(2) #solve under the 2 norm
         chan_theory_c = np.array([[-0.67],[-0.33]])
-        #pdb.set_trace()
+        pdb.set_trace()
         self.assertTrue(  np.all(chan_theory_c == np.around(self.example1Chan.c_p[0],decimals=2))  )
         
         ###WILL HAVE TO THINK ABOUT IF NEED THE SAME SET OF CONSTRAINTS FOR THE OTHERS
