@@ -465,7 +465,7 @@ class GIO():
                 #### Don't think we need these two lines (plus dont have a u any more)####
                 #for i in range(1,convex_prog.numvars+1):
                 #    convex_prog.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
-                convex_prog.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
+                #convex_prog.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
                 convex_prog.equal_constraint[index].activate() #activating relevant equality constraint
                 solver.solve(convex_prog)
                 #print("Objective function value is",pyo.value(convex_prog.obj))
@@ -658,7 +658,7 @@ class GIO():
         self.GIO_struc_ep = convex_prog
         
         
-    def GIO_structural_epsilon_solve(self,p,bigM=1984000):
+    def GIO_structural_epsilon_solve(self,p,FLAG=1984000):
         
         ##### Objective Function & Solution #####
         ##This will depend upon the norm we are imposing.##
@@ -679,9 +679,9 @@ class GIO():
             solver = SolverFactory('ipopt') #need nonlinear because of the 
                                     #objective function
             #pdb.set_trace()
-        ############ Solving the Convex Progs #############
-        #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
-        #https://projects.coin-or.org/Ipopt/ticket/205
+            ############ Solving the Convex Progs #############
+            #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
+            #https://projects.coin-or.org/Ipopt/ticket/205
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
                 for i in range(1,self.GIO_struc_ep.numvars+1):
@@ -691,9 +691,9 @@ class GIO():
                 results = solver.solve(self.GIO_struc_ep)
                 #### Checking for Feasibility ####
                 if str(results.solver.termination_condition) == "infeasible":
-                    print("We have infeasibility for constraint=",str(index-1),".  Putting bigM in the ",\
+                    print("We have infeasibility for constraint=",str(index-1),".  Putting FLAG in the ",\
                           "container_for_obj_vals vector")
-                    container_for_obj_vals[index-1] = bigM
+                    container_for_obj_vals[index-1] = FLAG
                 else: 
                     container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
                 
@@ -734,16 +734,17 @@ class GIO():
             
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
-                for i in range(1,self.GIO_struc_ep.numvars+1):
-                    self.GIO_struc_ep.u[i] = 0.01 
+                #for i in range(1,self.GIO_struc_ep.numvars+1):
+                    #self.GIO_struc_ep.u[i] = 0.01 
                 
                 self.GIO_struc_ep.equal_constraint[index].activate() #activating relevant equality constraint
+                #pdb.set_trace()
                 results = solver.solve(self.GIO_struc_ep)
                 #### Checking for Feasibility ####
                 if str(results.solver.termination_condition) == "infeasible":
-                    print("We have infeasibility for constraint=",str(index-1),".  Putting bigM in the ",\
+                    print("We have infeasibility for constraint=",str(index-1),".  Putting FLAG in the ",\
                           "container_for_obj_vals vector")
-                    container_for_obj_vals[index-1] = bigM
+                    container_for_obj_vals[index-1] = FLAG
                 else: 
                     container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
                 
@@ -756,7 +757,7 @@ class GIO():
             ## max{|x_1|,...,|x_n|} into a linear form
             ## See documentation for notes on this
             self.GIO_struc_ep.t = pyo.Var([1]) #hopefully this produces one variable - NEED TO CHECK THIS!
-            
+            #pdb.set_trace()
             ## Two rules to establish the extra constraints
             def extra_inf_norm_constraints_part1(model,i):
                 return model.ep[i] <= model.t[1]
@@ -772,9 +773,9 @@ class GIO():
                                 rule=extra_inf_norm_constraints_part2)
             
             ########## Defining the Objective Function #########
-            def obj_rule_p_inf(model):
+            def obj_rule_p_inf_struc(model):
                 return model.t[1]
-            self.GIO_struc_ep.obj = pyo.Objective(rule=obj_rule_p_inf)
+            self.GIO_struc_ep.obj = pyo.Objective(rule=obj_rule_p_inf_struc)
             solver = SolverFactory('glpk') #we have a linear program now
                             #due to the transformation, so we can use an LP solver
             
@@ -787,28 +788,30 @@ class GIO():
                 #### Don't think we need these two lines (plus dont have a u any more)####
                 #for i in range(1,convex_prog.numvars+1):
                 #    convex_prog.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
-                self.GIO_struc_ep.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
+                #self.GIO_struc_ep.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
                 self.GIO_struc_ep.equal_constraint[index].activate() #activating relevant equality constraint
+                #pdb.set_trace()
                 results = solver.solve(self.GIO_struc_ep)
-                #### Checking for Feasibility ####
+                #### Checking for Feasibility ####                
                 if str(results.solver.termination_condition) == "infeasible":
-                    print("We have infeasibility for constraint=",str(index-1),".  Putting bigM in the ",\
+                    print("We have infeasibility for constraint=",str(index-1),".  Putting FLAG in the ",\
                           "container_for_obj_vals vector")
-                    container_for_obj_vals[index-1] = bigM
+                    container_for_obj_vals[index-1] = FLAG
                 else: 
                     container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)                
                 #solver.solve(self.GIO_struc_ep)
                 #container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
                 self.GIO_struc_ep.equal_constraint[index].deactivate()
+                #pdb.set_trace()
         else:
             print("Error with entered p value")
             return
     
         ####### Find the Minimal Element in the Set #########  
         ###We will call this istar_struc because this is the GIO_struct_ep model
-        
+        #pdb.set_trace()
         ##Need to first do a feasibility check##
-        if container_for_obj_vals.min() == bigM:
+        if container_for_obj_vals.min() == FLAG:
             print("Error, entire problem infeasible")
             return 
         
@@ -816,8 +819,8 @@ class GIO():
         (istar_struc,) = np.where(container_for_obj_vals == container_for_obj_vals.min()) #remember indexes from 0        
         
         if np.size(istar_struc) > 1:
-            print("Under the dual norm, x^0 has been projected onto multiple",\
-                  "hyperplanes.  For now, we will choose the first i index",\
+            print("Multiple feasible epsilon^i are minimal",\
+                  "For now, we will choose the first i index",\
                   "and will put the rest of the indices in the istar_multi",\
                   "attribute.")
             self.istar_multi = [istar_struc] #replaces previous istar ()
@@ -880,7 +883,7 @@ class GIO():
         sum_of_obj_vals = 0
         num_feasible = 0
         for i in range(dim1):
-            if container_for_obj_vals[i] == bigM:
+            if container_for_obj_vals[i] == FLAG:
                 continue
             else:
                 sum_of_obj_vals = sum_of_obj_vals + container_for_obj_vals[i]

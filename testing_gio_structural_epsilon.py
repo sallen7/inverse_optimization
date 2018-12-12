@@ -8,25 +8,6 @@ import pyomo.environ as pyo
 import unittest
 from gio import GIO #importing the GIO class for testing
 
-A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
-b = np.array([[10],[-6],[4],[-10]])
-x0 = np.array([[2.5],[3]])
-
-#####ALSO WORKS AS A GOOD CHECK OF RHO_P calculations
-#testmod = GIO(A,b,x0) #initialize the model
-#testmod.GIO_structural_epsilon_setup()
-#testmod.GIO_struc_ep.pprint()
-#pdb.set_trace()
-#testmod.GIO_structural_epsilon_solve(2)
-#print("This is x0-ep*:",testmod.x0_epsilon_p) #WORKED
-
-#Need to test against all the rest of the stuff (copy and paste
-#the testing_gio.py stuff again) - also need to test rho calculations (make
-#SURE these numbers match the p numbers - really good way to validate)
-#REALLY NEED to check the 
-
-#ALSO do positive epsilon validation example - the right istar/c_vector 
-#validation test (need to show that can do something with this new method)
 
 class TestGIO_Structural_Ep(unittest.TestCase):
     "Tests for GIO Structural Epsilon stuff"
@@ -62,7 +43,7 @@ class TestGIO_Structural_Ep(unittest.TestCase):
         chan_c_p_1 = np.array([[0.4],[-0.6]])
         self.assertTrue(  np.all(chan_c_p_1 == np.around(self.example1Chan.c_p[0],decimals=2))  )        
         
-    def test_GIO_struc_ep_p_inf(self):
+    def test_GIO_struc_ep_p_inf(self): #this is all good - no "other"
         self.example1Chan.GIO_structural_epsilon_setup() #need to re-run this because 
                                                         #we need to reset the model 
         self.example1Chan.GIO_structural_epsilon_solve('inf') 
@@ -72,29 +53,71 @@ class TestGIO_Structural_Ep(unittest.TestCase):
         chan_c_p_inf = np.array([[0.4],[-0.6]])
         self.assertTrue(  np.all(chan_c_p_inf == np.around(self.example1Chan.c_p[0],decimals=2))  )
     
-    def test_force_ep_pos_p_2(self):
-        print("this test will check that we get the c that I'm expecting when I force epsilon to be positive")
-        #expecting projection to the one that the relative duality gap model projects to 
-        #WOULD NEED FEASIBILITY (WHICH THE METHOD FORCES)
+    def test_force_ep_pos_p_2(self): #array([  1.98400000e+06,   1.98400000e+06,   1.98400000e+06,
+         #8.94427191e-01]) 
         self.example1Chan.GIO_structural_epsilon_setup()
-        def ep_constraint(model):  #should provide the details of the index sets and the numvar parameters
+        def ep_constraint_p_2(model):  #should provide the details of the index sets and the numvar parameters
             return model.ep[1] <= model.ep[2] #specifically did not ID the epsilon as nonnegative in gio.py
-        self.example1Chan.GIO_struc_ep.constraint_ep = pyo.Constraint(rule=ep_constraint)
-        def non_neg_ep(model,i):
+        self.example1Chan.GIO_struc_ep.constraint_ep = pyo.Constraint(rule=ep_constraint_p_2)
+        def neg_ep_p_2(model,i):
             return model.ep[i] <= 0
-        self.example1Chan.GIO_struc_ep.non_neg_ep = pyo.Constraint(\
-                                                    self.example1Chan.GIO_struc_ep.varindex,rule=non_neg_ep)
+        self.example1Chan.GIO_struc_ep.neg_ep = pyo.Constraint(\
+                                                    self.example1Chan.GIO_struc_ep.varindex,rule=neg_ep_p_2)
         
         self.example1Chan.GIO_structural_epsilon_solve(2) #solve under the 2 norm
         chan_theory_c = np.array([[-0.67],[-0.33]])
-        pdb.set_trace()
+        #pdb.set_trace()
         self.assertTrue(  np.all(chan_theory_c == np.around(self.example1Chan.c_p[0],decimals=2))  )
         
-        ###WILL HAVE TO THINK ABOUT IF NEED THE SAME SET OF CONSTRAINTS FOR THE OTHERS
+    def test_force_ep_p_1(self): #array([  1.98400000e+06,   1.98400000e+06,   1.98400000e+06,
+         #1.00000000e+00]) - working correctly
+        self.example1Chan.GIO_structural_epsilon_setup()
+        
+        def ep_constraint_equal_p_1(model):  
+            return model.ep[2] == 0 
+        self.example1Chan.GIO_struc_ep.constraint_ep = pyo.Constraint(rule=ep_constraint_equal_p_1)
+        
+        def neg_ep_p_1(model):
+            return model.ep[1] <= 0
+        self.example1Chan.GIO_struc_ep.neg_ep = pyo.Constraint(rule=neg_ep_p_1)
+        
+        self.example1Chan.GIO_structural_epsilon_solve(1) #solve under the 2 norm
+        chan_theory_c = np.array([[-0.67],[-0.33]])
+        #pdb.set_trace()
+        self.assertTrue(  np.all(chan_theory_c == np.around(self.example1Chan.c_p[0],decimals=2))  )
+
+    def test_force_ep_p_inf(self): 
+        self.example1Chan.GIO_structural_epsilon_setup()
+        
+        def ep_constraint_equal_p_inf(model):  
+            return model.ep[1] == 0 
+        self.example1Chan.GIO_struc_ep.constraint_ep = pyo.Constraint(rule=ep_constraint_equal_p_inf)
+        
+        def non_neg_constraint_p_inf(model):
+            return model.ep[2] >= 0
+        self.example1Chan.GIO_struc_ep.non_neg_constraint_p_inf = pyo.Constraint(rule=non_neg_constraint_p_inf)
+        
+        self.example1Chan.GIO_structural_epsilon_solve('inf') #solve under the 2 norm
+        chan_theory_c = np.array([[0.29],[0.71]])
+        #pdb.set_trace()
+        self.assertTrue(  np.all(chan_theory_c == np.around(self.example1Chan.c_p[0],decimals=2))  )
+
                 
         
 unittest.main() #to run the unittest stuff in the file
 
 
+#    def test_force_ep_p_inf(self): #works when you initialize the t as FLAG- doesnt work otherwise
+#        #believe it has something to do with this bug: https://github.com/Pyomo/pyomo/issues/308
+#        self.example1Chan.GIO_structural_epsilon_setup()
+#        
+#        def ep_constraint_equal_p_inf(model):  
+#            return model.ep[1] == model.ep[2] 
+#        self.example1Chan.GIO_struc_ep.constraint_ep = pyo.Constraint(rule=ep_constraint_equal_p_inf)
+#        
+#        self.example1Chan.GIO_structural_epsilon_solve('inf') #solve under the 2 norm
+#        chan_theory_c = np.array([[-0.67],[-0.33]])
+#        pdb.set_trace()
+#        self.assertTrue(  np.all(chan_theory_c == np.around(self.example1Chan.c_p[0],decimals=2))  )
 
 
