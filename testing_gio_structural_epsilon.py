@@ -1,6 +1,14 @@
 #### Testing the GIO_structural_epsilon_setup(self)
 ####           & GIO_structural_epsilon_solve(self,p)
-#### Solution Method Set up
+#We are testing the structural constraints upon epsilon model
+#workflow.
+
+#We use the example 1 tests from the testing_gio.py file
+#and then we institute constraints upon epsilon for each of the norm
+#cases to force the model to choose a specific hyperplane for the 
+#c^* calculations
+
+#See the Appendix of the chapter for more details
 
 import pdb #for debugging
 import numpy as np
@@ -10,10 +18,7 @@ from gio import GIO #importing the GIO class for testing
 
 
 class TestGIO_Structural_Ep(unittest.TestCase):
-    "Tests for GIO Structural Epsilon stuff"
     def setUp(self):
-        """Generating one (or more) test instance(s) that can be shared among all of the 
-        unit tests"""
         ##### Data from Example 1 of Chan et al. Paper #####
         A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
         b = np.array([[10],[-6],[4],[-10]])
@@ -43,7 +48,7 @@ class TestGIO_Structural_Ep(unittest.TestCase):
         chan_c_p_1 = np.array([[0.4],[-0.6]])
         self.assertTrue(  np.all(chan_c_p_1 == np.around(self.example1Chan.c_p[0],decimals=2))  )        
         
-    def test_GIO_struc_ep_p_inf(self): #this is all good - no "other"
+    def test_GIO_struc_ep_p_inf(self): 
         self.example1Chan.GIO_structural_epsilon_setup() #need to re-run this because 
                                                         #we need to reset the model 
         self.example1Chan.GIO_structural_epsilon_solve('inf') 
@@ -53,8 +58,7 @@ class TestGIO_Structural_Ep(unittest.TestCase):
         chan_c_p_inf = np.array([[0.4],[-0.6]])
         self.assertTrue(  np.all(chan_c_p_inf == np.around(self.example1Chan.c_p[0],decimals=2))  )
     
-    def test_force_ep_pos_p_2(self): #array([  1.98400000e+06,   1.98400000e+06,   1.98400000e+06,
-         #8.94427191e-01]) 
+    def test_force_ep_pos_p_2(self):  
         self.example1Chan.GIO_structural_epsilon_setup()
         def ep_constraint_p_2(model):  #should provide the details of the index sets and the numvar parameters
             return model.ep[1] <= model.ep[2] #specifically did not ID the epsilon as nonnegative in gio.py
@@ -69,8 +73,7 @@ class TestGIO_Structural_Ep(unittest.TestCase):
         #pdb.set_trace()
         self.assertTrue(  np.all(chan_theory_c == np.around(self.example1Chan.c_p[0],decimals=2))  )
         
-    def test_force_ep_p_1(self): #array([  1.98400000e+06,   1.98400000e+06,   1.98400000e+06,
-         #1.00000000e+00]) - working correctly
+    def test_force_ep_p_1(self): 
         self.example1Chan.GIO_structural_epsilon_setup()
         
         def ep_constraint_equal_p_1(model):  
@@ -107,17 +110,5 @@ class TestGIO_Structural_Ep(unittest.TestCase):
 unittest.main() #to run the unittest stuff in the file
 
 
-#    def test_force_ep_p_inf(self): #works when you initialize the t as FLAG- doesnt work otherwise
-#        #believe it has something to do with this bug: https://github.com/Pyomo/pyomo/issues/308
-#        self.example1Chan.GIO_structural_epsilon_setup()
-#        
-#        def ep_constraint_equal_p_inf(model):  
-#            return model.ep[1] == model.ep[2] 
-#        self.example1Chan.GIO_struc_ep.constraint_ep = pyo.Constraint(rule=ep_constraint_equal_p_inf)
-#        
-#        self.example1Chan.GIO_structural_epsilon_solve('inf') #solve under the 2 norm
-#        chan_theory_c = np.array([[-0.67],[-0.33]])
-#        pdb.set_trace()
-#        self.assertTrue(  np.all(chan_theory_c == np.around(self.example1Chan.c_p[0],decimals=2))  )
 
 

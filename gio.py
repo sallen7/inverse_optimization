@@ -3,71 +3,46 @@
 #their general inverse optimization (GIO) models.  
 #There are three GIO models (1) based on p-norm (2) based on absolute duality gap
 #(3) based on relative duality gap
-#We have implemented (1) thus far for finding the optimal epsilon
+
+#The class provides methods for 
+#(1) solving these flavors of GIO models 
+#(2) producing "goodness-of-fit"/coefficient of complementarity values
+#for the three flavors
+#(3) solving the structural constraints upon epsilon model
 
 #The class assumes a forward (traditional linear constrained model) of 
 #           min c'x
 #           st Ax >= b
-#Therefore, the GIO class takes as INPUT the A and b matrices as well as a 
+#Therefore, the GIO class takes as INPUT the A and b as well as a 
 #feasible x0 value
-#The goal of the implemented algorithms is to (from Chan et al. (2018)):
-#For the general GIO method: "Given x^0, GIO(x^0) identifies a direction of
-#perturbation, epsilon*, of minimimal distance to bring x^0 into the set X^OPT"
-#with X^OPT as the set of points on the boundary of the feasible region that
-#have a corresponding c vector that would make these feasible points optimal
-#in the forward problem.
  
-#Chan et al. also provide methods for obtaining this c, which are fairly
-#simple to implement given that we have implemented the epsilon methods.
-
-#In the GIO_p(self,p) method, the user is asked to supply the p-norm he/she/they
-#wish to use.  We restrict the choice of p to the 1, 2, or infinity norms.
-
-###### Additional Helpful Documentation ######
-##https://software.sandia.gov/downloads/pub/coopr/CooprGettingStarted.html
-
 import pdb #for debugging
 import numpy as np                     
 import pyomo.environ as pyo
-from pyomo.opt import SolverFactory #page 43 of the Oct 2018 documentation
+from pyomo.opt import SolverFactory 
 from pyomo.opt import SolverStatus, TerminationCondition
-import pyomo.kernel as pyok #to differentiate from pyomo.environment
-                            #if I want to work from the lower level functionality
-                            #of pyomo, I need to work in the kernel
-
-#When Pyomo does a solve, it puts the solution values into attributes within object 
-
-#Doc Statement
-"A class to find the c and epsilon values under different General Inverse Optimization (GIO) models"
 
 
 class GIO():
-    #Doc Statement (Python book said we should include)
-    "A class to find the c and epsilon values under different General Inverse Optimization (GIO) models"
+    #Doc Statement
+    "A class to perform linear inverse optimization analysis under different General Inverse Optimization (GIO) models"
     
     def __init__(self,Amat,bvec,x0,num_eqs=None,num_vars=None,if_pyomo_params='F'):  
-        #start out with A, b, and x^0 (Chan et al. say they are "exogenously determined")
-        #Inputs: A,b,x0 (details below)
         
-        #We assume A is a matrix, b is a column vector, and x0 is a column vector UNLESS
-        #the if_pyomo_params argument is set to 'T' (which indicates that the data being
-        #passed into the initialization step are pyomo parameter components)
+#        Inputs: A,b,x0 (details below)
+#        
+#        We assume A is a numpy matrix, b is a numpy column vector, and 
+#        x0 is a numpy column vector UNLESS
+#        the if_pyomo_params argument is set to 'T' (which indicates that the data being
+#        passed into the initialization step are pyomo parameter components)
+#        
+#        Either way, we assume x0 is a numpy array
+#        
+#        IF this flag is set to 'T', then the user MUST provide num_eqs and num_vars
+#        parameter values
         
-        #Either way, we assume x0 is a numpy array
         
-        #IF this flag is set to 'T', then the user MUST provide num_eqs and num_vars
-        #parameter values
-        
-        if if_pyomo_params == 'T':  #means we are inputting param components 
-                                    #from the pyomo model
-                                    #Examples show A param matrices being created
-                                    #via function and having the traditional mxn form
-                                    #DO need numeric data in Amat
-#            if num_eqs==None | num_vars==None:
-#                print("Error: Need to provide num_eqs and num_vars parameters.",\
-#                      "Cannot create the GIO instance")
-#                return
-            
+        if if_pyomo_params == 'T':              
             Anumpy = np.zeros((num_eqs,num_vars))
             bnumpy = np.zeros((num_eqs,1))
             ### We are passing in a pyomo.core.base.param.IndexedParam (and it does work!)
@@ -81,14 +56,12 @@ class GIO():
             ### Assigning to Attributes ###
             self.A = Anumpy
             self.b = bnumpy            
-        else: 
+        else: #if we are passing in numpy arrays
             self.A = Amat
             self.b = bvec       
             
         #Attributes: We generate A, b, and x0 attributes as well as a bunch of lists in which
         #to put things for methods later on
-        #self.A = Amat
-        #self.b = bvec
         self.x0 = x0 #loading the data into attributes
         self.epsilon_p = []
         self.epsilon_a = []
@@ -107,6 +80,7 @@ class GIO():
         self.GIO_struc_ep = 0
         
     def i_star(self,A,b,x0,q):   
+        
         ####This method finds the minimum distance projection of x^0 onto the hyperplanes that
         ##define the boundary of the feasible region.
         ##INPUT: A (mxn numpy matrix), b (mx1 numpy column vector), x0 (nx1 numpy column vector), 
@@ -118,6 +92,7 @@ class GIO():
         ## istar variable, and the rest are written to the multi_istar attribute of the object
         
         ####Not a method users of the code need to worry about much####
+        
         
         residuals = np.transpose( (np.matmul(A,x0) - b) ) #need to transpose
         if np.any(residuals<0)==True: #none of the residuals should be less than 0 because x^0 is a feasible point; the code should break if there is a negative residual
@@ -142,7 +117,6 @@ class GIO():
         
         (istar,) = np.where(ratios == ratios.min()) #remember indexes from 0
         #The istar being returned is an array, whether a 1D or not
-        #pdb.set_trace()
         #Additional resource for where: https://www.geeksforgeeks.org/numpy-where-in-python/
         #https://stackoverflow.com/questions/18582178/how-to-return-all-the-minimum-indices-in-numpy
         
@@ -163,12 +137,14 @@ class GIO():
     
     
     def GIO_p(self,p,if_append='F'): 
-        "A method that computes GIO according to the p-norm"
-        "Input: The p indicates the norm (we only support 1,2, or infinity norms)"
-        """The if_append argument indicates whether or not we want to replace any epsilon 
-        and x0-epsilon values already generated or if we want to append the values onto a growing list.
-        It allows us to store multiple values of GIO_p under different norms.  Takes a value of 'T' or 'F' 
-        although wont actually append unless you put 'T' """
+        
+        #A method that computes GIO according to the p-norm
+        #INPUT: The p indicates the norm (we only support 1,2, or infinity norms)
+        #The if_append argument indicates whether or not we want to replace any epsilon 
+        #and x0-epsilon values already generated or if we want to append the values onto a growing list.
+        #It allows us to store multiple values of GIO_p under different norms.  Takes a value of 'T' or 'F' 
+        #although wont actually append unless you put 'T' 
+        
         
         if isinstance(p,str)==True: #making sure that if type in 'infinity', then gets converted
                                     #made use of: https://stackoverflow.com/questions/152580/whats-the-canonical-way-to-check-for-type-in-python
@@ -244,7 +220,19 @@ class GIO():
             self.calculate_c_vector(istar,'p',if_append) #calculating c vector
               
     def GIO_abs_duality(self):
+        
         ##Method that finds epsilon* according to the Absolute Duality Gap GIO Model##
+        #Inputs: None
+        
+        #Purpose: Implements the $\ep^*$ and $\c^*$ components of Theorem 
+        #\ref{chan_closed_form_theorem} for the GIO$_a(x^0)$ model %and thus 
+        #finds $\ep^*_p$ and the corresponding $\c^*$
+        
+        #Results/Output: Places the resulting computed 
+        #\textit{multi-dimensional} $\ep^*_a$ into the \url{epsilon_a} 
+        #attribute, the computed $\x^0 - \ep^*_a$ into the \url{x0_epsilon_a} 
+        #attribute, and the $\c^*$ in the \url{c_a} attribute
+        
         
         #### Gives the Exact Same Closed form Solution as the Infinity Norm ####
         [istar,min_ratio] = self.i_star(self.A,self.b,self.x0,1) #since dual of infinity is 1, and i* takes the dual norm
@@ -266,7 +254,20 @@ class GIO():
         self.calculate_c_vector(istar,'a','F')
     
     def GIO_relative_duality(self):
-        ##Method that finds epsilon* according to the Relative Duality Gap GIO Model##
+        
+        ##Method that finds epsilon* according to the Relative Duality Gap 
+        #GIO Model##
+        #Inputs: None
+    
+        #Purpose: Implements the $\ep^*$ and $\c^*$ components of Theorem 
+        #\ref{chan_closed_form_theorem} for the GIO$_r(x^0)$ model 
+    
+        #Results/Output: Places the resulting computed \textit{multi-dimensional}
+        #$\ep^*_r$ into the \url{epsilon_r} attribute, the computed 
+        #$\x^0 - \ep^*_r$ into the \url{x0_epsilon_r} attribute, and 
+        #the $\c^*$ in the \url{c_r} attribute
+        
+        
         [istar,min_ratio] = self.i_star(self.A,self.b,self.x0,'b')
         A_row = self.A[istar,:]
         epsilon = (1/np.linalg.norm(A_row,ord=1))*((np.dot(A_row,self.x0) - self.b[istar,0])*np.sign(A_row))
@@ -288,8 +289,19 @@ class GIO():
         self.calculate_c_vector(istar,'r','F')
     
     def GIO_all_measures(self):
-        """This function runs all of the GIO models, including GIO_p
-        for the p=1, 2, and inf norms"""
+        
+        #This function runs all of the GIO models, including GIO_p
+        #for the p=1, 2, and inf norms
+        
+        #Inputs: None
+    
+        #Purpose: Calls \url{GIO_p} for $p=1,2,\infty$ (using 
+        #\url{if_append=`T'} so that all of the values appear in the 
+        #attributes), \url{GIO_abs_duality()}, and \url{GIO_relative_duality()}.  Thus one method call generates a complete panel of GIO model solves.
+    
+        #Results/Output: Generates all of the output described above 
+        #for the individual methods
+        
         self.GIO_p(1,'T')
         self.GIO_p(2,'T')
         self.GIO_p('inf','T')        
@@ -298,13 +310,22 @@ class GIO():
     
             
     def calculate_rho_p(self,p,if_append='F'):
-        ### This function calculates the goodness-of-fit/coefficient of complementarity metric
-        ## under the p-norm 
         
-        ##INPUT: p (for p norm) and if_append ('T' if you want the rho_p to be appended onto the list, otherwise
-        ##we will just overwrite the rho_p list with a new list)
+        #Inputs: \url{p} specifies the type of norm (only $1,2,\infty$ supported)
+        #and \url{if_append} indicates whether or not you would like the 
+        #computed $\rho_p$ to be appended onto the current list in the 
+        #\url{rho_p} attribute.  It is set to \url{`F'} by default, which 
+        #means that the \url{rho_p} attribute is replaced by a list containing 
+        #the $\rho_p$ calculation.  Set to \url{`T'} if you would like to append.
         
-        ##OUTPUT: none, just writing to the rho_p attribute
+        #Purpose: Implements the calculation of $\rho_p$ according to 
+        #the $p$ norm specified using the data in the \url{A}, \url{b}, 
+        #and \url{x0} attributes
+        
+        #Results/Output: Places the resulting computed $\rho_p$ into the 
+        #\url{rho_p} attribute (which is a list) according to the 
+        #\url{if_append} parameter.  Does not return anything to the user
+        
         
         if isinstance(p,str)==True:
             p = 'inf' #making sure that, if a string was passed in for p, then 
@@ -412,7 +433,7 @@ class GIO():
             solver = SolverFactory('glpk') #we have a linear program now
                             #due to the transformation, so we can use an LP solver
             
-            #pdb.set_trace() #Looks like everything is good
+            
             ############ Solving the Convex Progs #############
             #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
             #https://projects.coin-or.org/Ipopt/ticket/205
@@ -420,9 +441,6 @@ class GIO():
             #solver = SolverFactory('ipopt')
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
-                for i in range(1,convex_prog.numvars+1):
-                    convex_prog.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
-                
                 convex_prog.equal_constraint[index].activate() #activating relevant equality constraint
                 solver.solve(convex_prog)
                 #print("Objective function value is",pyo.value(convex_prog.obj))
@@ -462,10 +480,6 @@ class GIO():
             sum_of_epsilons = 0
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
-                #### Don't think we need these two lines (plus dont have a u any more)####
-                #for i in range(1,convex_prog.numvars+1):
-                #    convex_prog.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
-                #convex_prog.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
                 convex_prog.equal_constraint[index].activate() #activating relevant equality constraint
                 solver.solve(convex_prog)
                 #print("Objective function value is",pyo.value(convex_prog.obj))
@@ -485,9 +499,15 @@ class GIO():
             self.rho_p = [rho]
             
     def calculate_rho_a(self):
-        ###This function will find the exact rho for the absolute duality gap
-        ##GIO model
-        ##We have NOT provided "if append" abilities as of this moment
+        
+        #Inputs: None
+        
+        #Purpose: Implements the calculation of $\rho_a$ using the data 
+        #in the \url{A}, \url{b}, and \url{x0} attributes
+        
+        #Results/Output: Places the resulting computed $\rho_a$ into the 
+        #\url{rho_a} attribute.  Does not return anything to the user
+        
         
         ##### Calculate epsilon*_a #####
         self.GIO_abs_duality() 
@@ -521,9 +541,16 @@ class GIO():
         self.rho_a = [1-(normed_epsilon_star_a/average_ratios)]
         
     def calculate_rho_r(self):
-        ###This function will find the exact rho for the relative duality gap
-        ##GIO model
-        ##We have NOT provided "if append" abilities as of this moment
+        
+        #Inputs: None
+        
+        #Purpose: Implements the calculation of $\rho_r$ using the data 
+        #in the \url{A}, \url{b}, and \url{x0} attributes
+        
+        #Results/Output: Places the resulting computed $\rho_r$ into 
+        #the \url{rho_r} attribute.  Does not return anything to the user
+        
+        
         [istar,min_ratio] = self.i_star(self.A,self.b,self.x0,'b') #assuming this is how
                             #we calculate istar
         
@@ -551,7 +578,17 @@ class GIO():
     
        
     def calculate_rho_p_approx(self,p):
-        ##Not going to allow for an append option right now
+        
+        #Inputs: \url{p} specifies the type of norm (only $1,2,\infty$ 
+        #supported)
+        
+        #Purpose: Implements the calculation of $\Tilde{\rho}_p$ using the 
+        #data in the \url{A}, \url{b}, and \url{x0} attributes
+        
+        #Results/Output: Places the resulting computed $\Tilde{\rho}_p$ 
+        #into the \url{rho_p_approx} attribute.  Does not return anything 
+        #to the user
+        
         
         if isinstance(p,str)==True: #making sure that if type in 'infinity' 
                                     #(or something like it), then gets converted
@@ -602,9 +639,22 @@ class GIO():
         self.rho_p_approx = [1-(numerator/denominator)]
         
     def calculate_c_vector(self,istar,gio_model,if_append):
-        ###Going to assume that istar has already been found for some 
-        ##Will be called by the other GIO functions
-        ##self.calculate_c_vector(istar,'r','F')
+        
+        #Inputs: \url{istar} index value, \url{gio_model} indicating 
+        #whether \url{`p',`a',`r'}, and \url{if_append} to indicate whether 
+        #or not for the \url{gio_model = `p'} option we would like values 
+        #calculated to be appended
+    
+        #Purpose: Calculate $\c^*$ according to Theorem 
+        #\ref{chan_closed_form_theorem}. This method is called by the 
+        #other \url{GIO} methods, which means it is an internal method 
+        #to the \url{GIO} class.
+    
+        #Results/Output: Places the computed $\c^*$ into the appropriate 
+        #attribute based upon the \url{gio_model} input. Makes decision on 
+        #whether or not to append based upon \url{if_append} input.  Does 
+        #not return anything to the user.
+        
         
         c_vector = self.A[istar,:]*(1/np.linalg.norm(self.A[istar,:],ord=1))
         ###Want to output a column numpy vector###
@@ -621,12 +671,19 @@ class GIO():
             self.c_r = [c_vector]
     
     def GIO_structural_epsilon_setup(self):
-        #Can only create one model at a time
-        #p-norm doesn't matter right now        
+        
+        #Inputs: None
+    
+        #Purpose: Sets up a \url{pyomo} model with the $A(\x^0 - \ep) \geq b$ 
+        #and all possible $\mathbf{a}'_i(\x^0 - \ep) = b_i$ constraints.  
+        #All of the equality constraints are ``deactivated'' such that, on 
+        #the $i$th solve, the $i$th equality constraint can be activated 
+    
+        #Results/Output: Places the \url{pyomo} model in the \url{GIO_struc_ep}
+        #attribute. Does not return anything to the user.        
         
         ########### Defining the Model (the Feasible Region Part) ############
         
-        #if p==2: #probably actually just need to specify this for the objective function
         A = self.A #copying to local variable because the local object "self" calls could get weird
         b = self.b
         x0 = self.x0
@@ -640,14 +697,11 @@ class GIO():
         
         ##### Feasibility Constraints #####
         def feas_rule(self,i): #we are assuming that b is a column vector with functioning 2 axes
-                                #HOPEFULLY THE TWO SELVES ARE NOT CONFUSING??
-                                #We are generating a local object, so hopefully we are all good
-            return sum( A[i-1,j-1]*(x0[j-1,0]-self.ep[j]) for j in range(1,self.numvars+1)) >= b[i-1,0] #need to be careful
-                                                                            #about mixing up the Pyomo vs Python indexing
+            return sum( A[i-1,j-1]*(x0[j-1,0]-self.ep[j]) for j in range(1,self.numvars+1)) >= b[i-1,0] 
         convex_prog.feas_constraint = pyo.Constraint(convex_prog.Arowindex,rule=feas_rule)
         
         ##### The ith constraint (equality) #####
-        def equal_rule(self,index): #need to figure out how we are indexing (Pyomo or Python)
+        def equal_rule(self,index): 
             return sum( A[index-1,j-1]*(x0[j-1,0]-self.ep[j]) for j in range(1,self.numvars+1) ) == b[index-1,0]
         
         convex_prog.equal_constraint = pyo.Constraint(convex_prog.Arowindex,rule=equal_rule) #assuming that we are Pyomo indexing
@@ -659,6 +713,25 @@ class GIO():
         
         
     def GIO_structural_epsilon_solve(self,p,FLAG=1984000):
+        
+        #Inputs: \url{p} to indicate the $p$-norm under which we are 
+        #working and \url{FLAG} is the large number we internally place 
+        #into the array containing the objective function values for each
+        #of the $m$ solves.  We have a default setting for the value, but 
+        #the user can change the \url{FLAG} if he/she/they believe their 
+        #specific application warrants it.  The objective with \url{FLAG} 
+        #is that it be larger than any of the actual $\ep^i$ values.
+    
+        #Purpose: Solve the \url{GIO_struc_ep} model (with any additional 
+        #constraints on $\ep$ added in by the user) according to the $p$ 
+        #norm specified.
+    
+        #Results/Output: Places the $\ep^*$ in \url{epsilon_p}, $\x^0 - \ep^*$ 
+        #in \url{x0_epsilon_p}, $\c^*$ in \url{c_p} and, if relevant, places 
+        #multiple $i^*$ indices in the \url{istar_multi} attribute.  Also 
+        #places the calculated $\rho_p$ into \url{rho_p}. Does not return 
+        #anything to the user.
+        
         
         ##### Objective Function & Solution #####
         ##This will depend upon the norm we are imposing.##
@@ -729,8 +802,7 @@ class GIO():
                             #due to the transformation, so we can use an LP solver
             
             ############ Solving the Convex Progs #############
-            #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
-            #https://projects.coin-or.org/Ipopt/ticket/205
+            
             
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
@@ -748,16 +820,15 @@ class GIO():
                 else: 
                     container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
                 
-                #solver.solve(self.GIO_struc_ep)
-                #container_for_obj_vals[index-1] = pyo.value(self.GIO_struc_ep.obj)
+                
                 self.GIO_struc_ep.equal_constraint[index].deactivate()
         
         elif p=='inf': #we have the infinity norm
             #### Similar to the p=1 norm, we have to do a transformation to convert the 
             ## max{|x_1|,...,|x_n|} into a linear form
             ## See documentation for notes on this
-            self.GIO_struc_ep.t = pyo.Var([1]) #hopefully this produces one variable - NEED TO CHECK THIS!
-            #pdb.set_trace()
+            self.GIO_struc_ep.t = pyo.Var([1])  
+            
             ## Two rules to establish the extra constraints
             def extra_inf_norm_constraints_part1(model,i):
                 return model.ep[i] <= model.t[1]
@@ -780,15 +851,9 @@ class GIO():
                             #due to the transformation, so we can use an LP solver
             
             ############ Solving the Convex Progs #############
-            #This help ticket indicated that we needed to give the interior point method a starting point (and indicated 0 was a bad one)
-            #https://projects.coin-or.org/Ipopt/ticket/205
             
             constraint_indices = [1+k for k in range(0,dim1)] #want dim1 because want number of rows
             for index in constraint_indices:
-                #### Don't think we need these two lines (plus dont have a u any more)####
-                #for i in range(1,convex_prog.numvars+1):
-                #    convex_prog.u[i] = 0.01 #have to give interior point algorithm a non-zero starting place
-                #self.GIO_struc_ep.t[1] = 0.01 #resetting for the heck of it - shouldn't cause any problems
                 self.GIO_struc_ep.equal_constraint[index].activate() #activating relevant equality constraint
                 #pdb.set_trace()
                 results = solver.solve(self.GIO_struc_ep)
@@ -829,7 +894,7 @@ class GIO():
             istar_struc = istar_struc[0] #because istar is coming back as an array when we
                             #want it to be an index
         
-        #pdb.set_trace()
+        
         ##################### Solve the Mathematical Program One More Time #########################
         if p==2:
             solver = SolverFactory('ipopt')
@@ -871,7 +936,7 @@ class GIO():
             for i in range(1,dim2+1): #since pyomo models and python are on different indexing systems
                 epsilon[i-1,0] = self.GIO_struc_ep.ep[i].value            
         
-        #pdb.set_trace()
+        
         ########## Storing Things in Attributes ###########
         self.epsilon_p = [epsilon]
         self.x0_epsilon_p = [self.x0 - epsilon]
@@ -899,38 +964,12 @@ class GIO():
     ###################### To be continued methods/functions ################################# 
     
     def GIO_structural_c_setup(self):
-        print("working on, in development") #only doing the absolute duality gap model
-        #IMPORTANT CAVEAT: ONLY BECOMES LP WHEN C IS RESTRICTED TO BE POSITIVE (since can
-        #just put combo of c>=0 and sum of c elements = 1 (with no absolute value bars))
-#        A = self.A #copying to local variable because the local object "self" calls could get weird
-#        b = self.b
-#        x0 = self.x0
-#        (dim1,dim2) = np.shape(A) #getting the dimensions for the variable sets
-#        
-#        ########## Generating the Model ###########
-#        lin_prog = pyo.ConcreteModel()
-#        lin_prog.numvars = pyo.Param(initialize=dim2)
-#        lin_prog.numeqs = pyo.Param(initialize=dim1)
-#        lin_prog.varindex = pyo.RangeSet(1,dim2)
-#        lin_prog.Arowindex = pyo.RangeSet(1,dim1)
-#        lin_prog.ep = pyo.Var(convex_prog.varindex)
+        print("working on, in development") 
         
     
     def GIO_structural_c_solve(self):           
         print("working on, in development")
-               
-       
-    
-    def GIO_linear_solve(self,type_c_constraint,type_ep_constraint):
-        print("This function will serve the purpose of producing epsilon values",\
-              "when we want to be able to put constraints upon c and epsilon.",\
-              "We will implement a few options for constraints that can be placed on",\
-              "c and epsilon that the user can pass in as options.",\
-              "We will be using the absolute duality gap model")
-        #Useful for when the closed form solution breaks down
-        #Will need to generate an actual Pyomo model and do a linear solve.  
-        #OR if users pass in a Pyomo model, then will need to figure out what to do
-            
+                   
         
             
             

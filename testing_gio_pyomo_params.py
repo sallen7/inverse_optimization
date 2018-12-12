@@ -3,6 +3,12 @@
 #from the Chan et al. paper.  The example provided optimal x0-epsilon* values
 #under the 1,2, and infinity norms, and we use the unit tests to ensure that 
 #we achieve these values
+#We also use the unit tests to make sure we achieve the correct c^* values
+
+#The INPUT for the test GIO model consists of Pyomo parameters for A and b 
+#and a numpy array for x0
+
+#See the chapter for more detailed description
 
 import pdb #for debugging
 import numpy as np
@@ -10,14 +16,10 @@ import unittest
 from gio import GIO #importing the GIO class for testing
 import pyomo.environ as pyo
 
-#########   Unit Test References   ######################
 
 #####   The Unit Test   #######
-class TestGIO_(unittest.TestCase):
-    "Tests for GIO class when pass Pyomo Parameters"
+class TestGIO_PyomoParam(unittest.TestCase):
     def setUp(self):
-        """Generating one (or more) test instance(s) that can be shared among all of the 
-        unit tests"""
         ##### Creating a Pyomo Model from the data in Chan et al. Example 1 #####
         A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
         #b = np.array([[10],[-6],[4],[-10]])
@@ -44,9 +46,7 @@ class TestGIO_(unittest.TestCase):
                                                4,2,'T')
         
     def test_GIO_p_2(self):
-        self.example1Chan.GIO_p(2,'F')  #the methods are attached to the instances
-                                #epsilon* will be stored in self.example1Chan.epsilon_p
-                                #x0-epsilon* will be stored in self.example1Chan.x0_epsilon_p
+        self.example1Chan.GIO_p(2,'F')  
         chan_x0_ep_p_2 = np.array([[2.19],[3.46]]) #from the Chan et al. paper
         self.assertTrue(  np.all(chan_x0_ep_p_2 == np.around(self.example1Chan.x0_epsilon_p[0],decimals=2))  )
         #####ADDING THE CHECK OF c calculation#####

@@ -1,14 +1,21 @@
 ##### Generating the Heat Map to Validate Code #####
+#This script generates heat maps for rho_a and rho_r
+#for Example 1 of the Chan et al. 2018 paper.
+
+#A user can specify which of the two he/she/they would like
+#to compute by specifying 'a' or 'r' respectively in the 
+#type_duality parameter below.
+#As with the testing_rho_p script, the density (number of x0 dots
+#calculated) can also be changed via the density parameter
+
 
 import pdb #for debugging
 import numpy as np
 import time
 import matplotlib.pyplot as plt #http://www.scipy-lectures.org/intro/matplotlib/matplotlib.html#simple-plot
 import pyomo.environ as pyo
-from pyomo.opt import SolverFactory #page 43 of the Oct 2018 documentation
+from pyomo.opt import SolverFactory 
 from gio import GIO
-#from testing_rho_p import generate_rho_p
-#from joblib import Parallel, delayed #for parallelization
 
 ##################### Data ############################### 
 A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
@@ -63,7 +70,7 @@ for i in range(0,density):
         generate_rho_a_r(x1,y1,i,j,type_duality)
         
 
-##### Creating the Graphic #####
+################ Creating the Graphic ########################
 #Adopted the colorbar parts of the code from: https://stackoverflow.com/questions/6063876/matplotlib-colorbar-for-scatter
 #Link below also helped with understanding plt.scatter()
 #https://matplotlib.org/gallery/shapes_and_collections/scatter.html#sphx-glr-gallery-shapes-and-collections-scatter-py
@@ -78,13 +85,11 @@ plt.title('Rho_p for Chan et al. (2018) Example 1, duality=' + type_duality)
 
 print("Run time (seconds) for the script: ")             
 time_1 = time.clock() - time_0
-print(time_1) #Took 76 seconds for density of 30 (with no loop unrolling)
-              #the image doesn't get very fine grained; so going to need more points
-              #We were at like 45 seconds for 20
+print(time_1) 
      
         
 plt.show() #want the graphic to show after the time gets recorded
-            #need a way for this to work in Jupyter
+            
             
 ####Testing the Rho_approx_inf matrix against the Absolute Duality Matrix####
 if type_duality == 'a':
