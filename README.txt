@@ -40,9 +40,19 @@ calculate_rho_a and calculate_rho_r methods
 -- testing_gio_structural_epsilon.py has the unittests for the
 structural constraints on epsilon workflow methods
 
+There is also one file named "Checking_rho_r.m" which is the MATLAB
+file corresponding to the calculator actions we performed for ``hand 
+computing'' three rho_r values for three x^0 values, which we then checked
+against output from the calculate_rho_r method.  See the 
+Coefficient of Complementarity Validation subsection of the Appendix
+in the chapter for further details.
+
 (D) DEMO FILES
 -- demo_gio_class.ipynb Jupyter notebook shows some of 
 the functionality of the GIO class 
+***NOTE: If the Jupyter notebook does not load in GitHub, 
+copy and paste the link into the display here:
+https://nbviewer.jupyter.org/
 
 (E) DATA/VISUALS
 -- inf_norm_rho_approx_mesh.npy was used to validate the 

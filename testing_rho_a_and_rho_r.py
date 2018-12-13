@@ -27,7 +27,7 @@ x0 = np.array([[2.5],[3]])
 ##### Set Up #####
 time_0 = time.clock()
 density = 70
-type_duality = 'r' #'a' or 'r'
+type_duality = 'a' #'a' or 'r'
 half_dense = int(density/2)
 x_vals = np.linspace(0,5,density)
 y_vals = np.linspace(0,4,density)
@@ -76,12 +76,14 @@ for i in range(0,density):
 #https://matplotlib.org/gallery/shapes_and_collections/scatter.html#sphx-glr-gallery-shapes-and-collections-scatter-py
 #https://matplotlib.org/api/_as_gen/matplotlib.pyplot.scatter.html
 
+
 colormap_option = plt.cm.get_cmap('rainbow') 
 rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z,vmin=0,vmax=1,cmap=colormap_option)
-plt.colorbar(rho_map)
-plt.xlabel('x_1')
-plt.ylabel('x_2')
-plt.title('Rho_p for Chan et al. (2018) Example 1, duality=' + type_duality)
+cbar = plt.colorbar(rho_map)
+cbar.ax.tick_params(labelsize=18)
+plt.xlabel('x_1',fontsize=20)
+plt.ylabel('x_2',fontsize=20)
+plt.title('Rho_p for Chan et al. (2018) Example 1, duality=' + type_duality,fontsize=20)
 
 print("Run time (seconds) for the script: ")             
 time_1 = time.clock() - time_0

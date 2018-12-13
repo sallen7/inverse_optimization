@@ -27,7 +27,7 @@ x0 = np.array([[2.5],[3]])
 ##### Set Up #####
 time_0 = time.clock()
 density = 70
-p = 1 #for setting the norm
+p = 'inf' #for setting the norm
 half_dense = int(density/2)
 x_vals = np.linspace(0,5,density)
 y_vals = np.linspace(0,4,density)
@@ -78,28 +78,31 @@ for i in range(0,density):
 plt.subplot(131)
 colormap_option = plt.cm.get_cmap('rainbow') 
 rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z,vmin=0,vmax=1,cmap=colormap_option)
-plt.colorbar(rho_map)
-plt.xlabel('x_1')
-plt.ylabel('x_2')
-plt.title('Rho_p for Chan et al. (2018) Example 1, p=' + str(p))
+cbar = plt.colorbar(rho_map)
+cbar.ax.tick_params(labelsize=18)
+plt.xlabel('x_1',fontsize=20)
+plt.ylabel('x_2',fontsize=20)
+plt.title('Rho_p for Chan et al. (2018) Example 1, p=' + str(p),fontsize=20)
 
 plt.subplot(132)
 colormap_option = plt.cm.get_cmap('rainbow') 
 rho_map = plt.scatter(mesh_x,mesh_y,c=mesh_z_approx,vmin=0,vmax=1,cmap=colormap_option)
-plt.colorbar(rho_map)
-plt.xlabel('x_1')
-plt.ylabel('x_2')
-plt.title('Rho_p_approx, p=' + str(p))
+cbar = plt.colorbar(rho_map)
+cbar.ax.tick_params(labelsize=18)
+plt.xlabel('x_1',fontsize=20)
+plt.ylabel('x_2',fontsize=20)
+plt.title('Rho_p_approx, p=' + str(p),fontsize=20)
 
 
 plt.subplot(133)
 colormap_option = plt.cm.get_cmap('rainbow') 
 diff_max = np.amax(mesh_z-mesh_z_approx)
 rho_map = plt.scatter(mesh_x,mesh_y,c=(mesh_z-mesh_z_approx),vmin=0,vmax=diff_max,cmap=colormap_option)
-plt.colorbar(rho_map)
-plt.xlabel('x_1')
-plt.ylabel('x_2')
-plt.title('rho_p - rho_p_approximate, p=' + str(p))
+cbar = plt.colorbar(rho_map)
+cbar.ax.tick_params(labelsize=18)
+plt.xlabel('x_1',fontsize=20)
+plt.ylabel('x_2',fontsize=20)
+plt.title('rho_p - rho_p_approximate, p=' + str(p),fontsize=20)
 
 
 
