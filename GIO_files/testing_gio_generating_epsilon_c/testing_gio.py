@@ -9,10 +9,19 @@
 
 #See the chapter for more detailed description
 
+#from pathlib import Path
+#gio_source_folder = Path("C:/Users/StephanieAllen/1_AMSC663/Repository_for_Code/GIO_files/gio.py")
+
+import sys
+sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
+#probably will need to figure out how to make more general for like regular ppl
+#but it works for now in my directory!
+print(sys.path)
+
 import pdb #for debugging
 import numpy as np
 import unittest
-from gio import GIO #importing the GIO class for testing
+from GIO_files.gio_source.gio import GIO #importing the GIO class for testing
 
 #########   Unit Test References   ######################
 #Inspired by: https://stackoverflow.com/questions/3302949/whats-the-best-way-to-assert-for-numpy-array-equality
