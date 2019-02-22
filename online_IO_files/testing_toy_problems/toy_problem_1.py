@@ -13,7 +13,10 @@ from pyomo.opt import SolverStatus, TerminationCondition
 
 toyprob1 = pyo.ConcreteModel()
 toyprob1.x = pyo.Var([1,2]) #two x variables
-toyprob1.b_param = pyo.Param([1,2],{1:4,2:6},mutable=True)
+toyprob1.b_param = pyo.Param([1,2],initialize={1:4,2:6},mutable=True)
+toyprob1.exper_mat = pyo.Param([1,2],[1,2],initialize={(1,1):1,(1,2):2,(2,1):3,(2,2):4})
+#doesn't seem like you can just update with a straight dictionary
+#maybe if I can do a hybrid numpy/pyomo thing
 toyprob1.constraint1 = pyo.Constraint(expr=toyprob1.x[1]-toyprob1.x[2] >= toyprob1.b_param[1])
 toyprob1.constraint2 = pyo.Constraint(expr=2*toyprob1.x[1]+toyprob1.x[2] == toyprob1.b_param[2]) #bounds should be like 0
 
@@ -22,6 +25,8 @@ toyprob1.obj_func = pyo.Objective(expr=5*toyprob1.x[1]-3*toyprob1.x[2])
 toyprob1.pprint()
 
 #Can I just provide a new dictionary to the mutable param object?
+
+pdb.set_trace()
 
 print("These are the constraints")
 #The following loop is heavily based upon code from the Pyomo documentation
