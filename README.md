@@ -17,5 +17,12 @@ Note: We reference a "chapter" at times in the files. This refers to the extensi
 	* The `testing_gio_rho` folder contains the validation scripts for the coefficient of complementarity (rho) methods.
 
 
+
+
+## Specifications for Set-up of Code ##
+
+Information regarding relevant packages needed for the use of this code will be provided in the near future.
+
+
    
 

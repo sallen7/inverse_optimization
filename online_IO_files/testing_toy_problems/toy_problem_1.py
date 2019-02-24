@@ -26,6 +26,8 @@ toyprob1.pprint()
 
 #Can I just provide a new dictionary to the mutable param object?
 
+dict_test = {'name':'b_param'}
+
 pdb.set_trace()
 
 print("These are the constraints")
