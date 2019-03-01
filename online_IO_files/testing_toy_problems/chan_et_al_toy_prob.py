@@ -65,9 +65,12 @@ test_model.dummy_param = pyo.Param()
 #TO DO: See if the dummy parameter actually works, and then if it does
 #thinking about a work around
 
-chan_online = Online_IO(test_model,Qname='dummy_param',cname='cvec',Aname='Amat',\
-                        bname='bvec',Dname='dummy_param',fname='dummy_param',\
-                        dimQ=(0,0),dimc=(2,1),dimA=(4,2),dimD=(0,0))
+#def __init__(self,initial_model,Qname='Q',cname='c',Aname='A',bname='b',Dname='D',fname='f',\
+#                 dimQ=(1,1),dimc=(1,1),dimA=(1,1),dimD=(1,1),binary_mutable=[0,0,0,0,0,0]):
+
+chan_online = Online_IO(test_model,Qname='None',cname='cvec',Aname='Amat',\
+                        bname='bvec',Dname='None',fname='None',\
+                        dimQ=(0,0),dimc=(2,1),dimA=(4,2),dimD=(0,0),binary_mutable=[0,0,0,1,0,0])
 
 sample_y = np.array([[2.5],[3]]) #maybe the model is all pyomo but the 
                                 #input data is numpy arrays
@@ -78,6 +81,24 @@ chan_online.loss_function(y=sample_y)
 chan_online.loss_model_dong.pprint() #see the solution
                             #DID indeed get the right values once I change
                             # the objective function c back to the right set of values
+                            
+                            #Looks like the x is being set right
+                            #WHY IS THIS A_index set created??
+
+##### Feeding in New Data into the Model #####
+
+test_dict = {}
+new_b = {1:100,2:100,3:100,4:100} 
+test_dict['bvec'] = new_b
+
+chan_online.receive_data(p_t=test_dict)
+
+chan_online.KKT_conditions_model.pprint()
+
+pdb.set_trace() #it worked!!!
+                            
+                            
+                
 
 
 

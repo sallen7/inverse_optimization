@@ -13,11 +13,12 @@ import pyomo.mpec as pyompec #for the complementarity
 class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
     
     def __init__(self,initial_model,Qname='Q',cname='c',Aname='A',bname='b',Dname='D',fname='f',\
-                 dimQ=(1,1),dimc=(1,1),dimA=(1,1),dimD=(1,1)):
+                 dimQ=(1,1),dimc=(1,1),dimA=(1,1),dimD=(1,1),binary_mutable=[0,0,0,0,0,0]):
         #TO DO: (1) Might want have the initialization of the names and dimensions
         #as a separate method?  Want to ask Tom's advice
         # (2) Fix the fact that right now you have to define a "dummy_name"
         # parameter in your model
+        # (3) Decide if default values should be the names or 'None'
         
         #FOR NOW we are going with the pyomo model implementation.
         #(Could always utilize numpy to create the parameters)
@@ -27,6 +28,8 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         #So I can put a copy of the model into an attribute and then index
         #into it with different names, but I 
         
+        #We are assuming that binary_mutable is in the order of Q,c,A,b,D,f
+        
         self.initial_model = initial_model #load initial pyomo model into attribute
         self.obj_vals = {} #going to initialize as a dictionary to make easier to handle
                             #different types of objective functions
@@ -34,8 +37,30 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
                                         #by setting as None, can use "is __ none" method
         self.model_data_names = {'Q':Qname,'c':cname,'A':Aname,'b':bname,'D':Dname,'f':fname}
         self.model_data_dimen = {'Q':dimQ,'c':dimc,'A':dimA,'D':dimD}
+        self.num2param_key = {1:'Q',2:'c',3:'A',4:'b',5:'D',6:'f'} 
         
-        ##Dong_implicit_update Attributes##
+        ## Dictionary for Mutable/Not Mutable ##
+        #Assume the vector is in the order of Q,c,A,b,D,f
+        mutability = {}
+        mutable_params = {}
+        #counter = 1
+        for (i,param_name) in self.num2param_key.items():
+            if binary_mutable[i-1] == 0:
+                mutability[i] = 'False'    #decided to index from 1 since this will
+                                            #be used in the pyomo model
+            elif binary_mutable[i-1] == 1:
+                mutability[i] = 'True'
+                mutable_params[param_name] = self.model_data_names[param_name] #NEW: subset of model_data_names
+                #mutable_params[counter] = self.num2param_key[i+1] #creating a list of the mutable params
+                #counter = counter + 1
+            else:
+                print('Error: There should only be 0s and 1s in the binary_mutable parameter.')
+                return
+            
+        self.if_mutable = mutability 
+        self.model_data_names_mutable = mutable_params #NEW: (paramname,username) subset of model_data_names
+        
+        ##### Dong_implicit_update Attributes #####
         self.KKT_conditions_model = None
         self.loss_model_dong = None
     
@@ -51,15 +76,9 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
             #Thank you to:
             #https://stackoverflow.com/questions/2612610/how-to-access-object-attribute-given-string-corresponding-to-name-of-that-attrib
             #https://docs.python.org/2/library/functions.html#getattr
-            self.compute_KKT_conditions(getattr(self.initial_model,self.model_data_names['Q']),\
-                getattr(self.initial_model,self.model_data_names['c']),\
-                getattr(self.initial_model,self.model_data_names['A']),\
-                getattr(self.initial_model,self.model_data_names['b']),\
-                getattr(self.initial_model,self.model_data_names['D']),\
-                getattr(self.initial_model,self.model_data_names['f']),\
-                dimQ=self.model_data_dimen['Q'],dimc=self.model_data_dimen['c'],\
-                dimA=self.model_data_dimen['A'],dimD=self.model_data_dimen['D'],\
-                use_numpy=0) #we are passing in parameter objects into compute_KKT_conditions
+            self.compute_KKT_conditions(dimQ=self.model_data_dimen['Q'],\
+                dimc=self.model_data_dimen['c'],dimA=self.model_data_dimen['A'],\
+                dimD=self.model_data_dimen['D'],use_numpy=0) 
         
         else:
             print("Error, we do not support inputted method. (It is possible",\
@@ -68,18 +87,43 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         
             
     
-    def receive_data(self,p_t,x_t,alg_specification):
-        #The algorithm specification might get set by the initialization.
-        #In the initialize_IO_method, might want to initialize an attribute
-        #for the object so that we can here say alg_specification=self.SOMETHING
+    def receive_data(self,p_t,x_t=0):
+        #TO DO: (1) Figure out how to integrate x_t
+        # (2) Figure out how to handle the diff parameterizations and
+        # changing parameterization of the objective function
+        # Might need to call data from previous iteration (might need 
+        # iteration counter to facilitate going backward, esp when receive first data point)
+        # (3) Throw an error if number of elements in p_t dictionary does not
+        # match number of items in self.model_data_names_mutable dictionary
+        # Don't want users to accidently only change part of their data
+        # (4) Double check that do want to be changing KKT_model for Dong - think
+        # that is the thing we want to change since we can always regenerate the loss
+        # model and other optimization model that we ultimately 
+        # (5) DOUBLE CHECK THAT THEY ARE NOT PHASING OUT RECONSTRUCT method
         
-        #We will want this method to throw an error if people try to use it before the 
-        #initialize_IO_method - that is where having "None" in the alg_specification
-        #attribute is important
-        print("working on")
+        #I would like this method to handle ALL of the parameter changing
+        
+        #Need to figure out the form of p_t - dictionary of dictionaries with
+        #the sub dictionaries themselves keyed by the param names that the user
+        #themselves have set
+        
+        #METHOD DESCRIPTION: We are assuming that if a parameter is mutable then the 
+        #entire parameter block is mutable.  Users cannot just pass in single values.
+        
+        if self.alg_specification is None:
+            print("Error: Must initialize an online algorithm before using this method. ",\
+                  "You will need to use .initialize_IO_method.")
+            return
+        elif self.alg_specification == "Dong_implicit_update":
+            for (class_pname,user_pname) in self.model_data_names_mutable.items():
+                data = p_t[user_pname]
+                getattr(self.KKT_conditions_model,class_pname).clear() #clearing the attribute
+                getattr(self.KKT_conditions_model,class_pname).reconstruct(data) #reconstruct the attribute
+                #setattr(self.KKT_conditions_model,class_pname,data)
         
         
-    def compute_KKT_conditions(self,Q,c,A,b,D,f,dimQ=(1,1),dimc=(1,1),dimA=(1,1),\
+        
+    def compute_KKT_conditions(self,dimQ=(1,1),dimc=(1,1),dimA=(1,1),\
                                dimD=(1,1),use_numpy=0,bigM=10000):
         
         #TO DO: 
@@ -94,6 +138,14 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         #       Will still need to get users to ID which param name is mutable
         #       In order for me to be able to update...
         #       Can test if all of this works by writing a new method to update!
+        
+        #       A is actually a container that contains Amat
+        #       Wonder if I should just force everyone into calling things the way I want them to do so....
+        #       Really want to copy over a parameter component to another model.... and then rename it
+        #       This behavior is not supported by Pyomo; components must have a
+        #       single owning block (or model), and a component may not appear
+        #       multiple times in a block.  If you want to re-name or move this
+        #       component, use the block del_component() and add_component() methods.
         # (3) Might want to not define variables that we don't need to (us and vs)
         # (4) More cases for Stationarity conditions
         
@@ -115,10 +167,25 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         
         #If use_numpy=1, then we know that Q,c,A,D are numpy arrays.
         
+        ##############################################
+                
+        ### We can create dope generators from some of the methods in the 
+        ### developers/AML guide - might help us iterate through
+        ### the parameter objects and maybe we wont even have to make 
+        ### people provide the dimensions (esp if can get to return the keys!)
+        ## although may need people to acknowledge existance of or nonexistance
+        ## of things
+        
+        #Some of the stuff seems to be for the BLOCK components
+        
+        #extract_values()
+        
+        #############################################
         KKT_model = pyo.ConcreteModel()
         
         if use_numpy == 0: #means we are using parameter objects
-            ##### Step 1: Write out the Stationarity Conditions #####
+            
+            ###### Step 0: Setting Up the Book-Keeping #####
             
             ## Setting up the Variables ##
             #ph is for placeholder (wont end up being used)
@@ -135,29 +202,72 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
             KKT_model.vindex = pyo.RangeSet(1,p)
             KKT_model.v = pyo.Var(KKT_model.vindex)
             
+            ## Setting Data ##
+            #USE SET ATTRIBUTE HERE TO ITERATE OVER EVERYTHING!!
+            #https://github.com/Pyomo/pyomo/issues/525
+            #Then go back in and fix the A[] to KKT_model.A[]
+            for (i,param_name) in self.num2param_key.items():
+            #I think you can index into things with generators - dictionaries are generators!
+                if self.model_data_names[param_name] == 'None':
+                    pass #continue onward
+                else:
+                    data = getattr(self.initial_model,self.model_data_names[param_name])
+                    data = data.extract_values()
+                    if param_name == 'Q':
+                        setattr(KKT_model,param_name,pyo.Param(KKT_model.xindex,KKT_model.xindex,\
+                                    initialize=data,mutable=self.if_mutable[i]))
+                    elif param_name == 'c':
+                        setattr(KKT_model,param_name,pyo.Param(KKT_model.xindex,\
+                                    initialize=data,mutable=self.if_mutable[i]))
+                    elif param_name == 'A':
+                        setattr(KKT_model,param_name,pyo.Param(KKT_model.uindex,KKT_model.xindex,\
+                                    initialize=data,mutable=self.if_mutable[i]))
+                    elif param_name == 'b':
+                        setattr(KKT_model,param_name,pyo.Param(KKT_model.uindex,\
+                                    initialize=data,mutable=self.if_mutable[i]))
+                    elif param_name == 'D':
+                        setattr(KKT_model,param_name,pyo.Param(KKT_model.vindex,KKT_model.xindex,\
+                                    initialize=data,mutable=self.if_mutable[i]))
+                    elif param_name == 'f':
+                        setattr(KKT_model,param_name,pyo.Param(KKT_model.vindex,\
+                                    initialize=data,mutable=self.if_mutable[i]))
+                        
+                
+            #pdb.set_trace()
+#                if self.model_data_names['Q'] == 'None':
+#                    pass #continue onward
+#                else:
+#                    Q_data = getattr(self.initial_model,self.model_data_names['Q'])
+#                    Q_data = Q_data.extract_values()
+#                    KKT_model.Q = pyo.Param(KKT_model.xindex,KKT_model.xindex,\
+#                                    initialize=Q_data,mutable=)
+            
+            
+            ##### Step 1: Write out the Stationarity Conditions #####
+            
             ## Establishing the KKT Stationarity Stuff ##
             #Determining the Stationarity Rule to Use Based upon Existance of Data
             #We will assume that c vector is always present (for now) but all
             #others will be up for grabs
             if n2==0 and m>0 and p>0:
                 def KKT_stationarity_rule(model,i): #no Q
-                    return c[i]\
-                    + sum(A[j,i]*model.u[j] for j in range(1,m+1)) \
-                    + sum(D[j,i]*model.v[j] for j in range(1,p+1)) == 0
+                    return model.c[i]\
+                    + sum(model.A[j,i]*model.u[j] for j in range(1,m+1)) \
+                    + sum(model.D[j,i]*model.v[j] for j in range(1,p+1)) == 0
                     
             elif n2==0 and m>0 and p==0: #no Q, no D
                 def KKT_stationarity_rule(model,i):
-                    return c[i] + sum(A[j,i]*model.u[j] for j in range(1,m+1)) == 0
+                    return model.c[i] + sum(model.A[j,i]*model.u[j] for j in range(1,m+1)) == 0
                 
             elif n2>0 and m>0 and p>0: #have all the data
                 def KKT_stationarity_rule(model,i):
-                    return sum(Q[i,j]*model.x[j] for j in range(1,n+1)) + c[i]\
-                    + sum(A[j,i]*model.u[j] for j in range(1,m+1)) \
-                    + sum(D[j,i]*model.v[j] for j in range(1,p+1)) == 0
+                    return sum(model.Q[i,j]*model.x[j] for j in range(1,n+1)) + model.c[i]\
+                    + sum(model.A[j,i]*model.u[j] for j in range(1,m+1)) \
+                    + sum(model.D[j,i]*model.v[j] for j in range(1,p+1)) == 0
                     
             elif n2==0 and m==0 and p>0: #no Q no A
                 def KKT_stationarity_rule(model,i):
-                    return c[i] + sum(D[j,i]*model.v[j] for j in range(1,p+1)) == 0
+                    return model.c[i] + sum(model.D[j,i]*model.v[j] for j in range(1,p+1)) == 0
             
             KKT_model.stationary_conditions = pyo.Constraint(KKT_model.xindex,rule=KKT_stationarity_rule)
             
@@ -168,7 +278,7 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
                 
                 ## Maintaining Feasibility of Ax <= b ##
                 def Ax_b_feasibility_rule(model,i):
-                    return sum(A[i,j]*model.x[j] for j in range(1,n+1)) <= b[i]
+                    return sum(model.A[i,j]*model.x[j] for j in range(1,n+1)) <= model.b[i]
                 
                 KKT_model.Ax_b_feas = pyo.Constraint(KKT_model.uindex,\
                                                      rule=Ax_b_feasibility_rule)
@@ -181,14 +291,15 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
                 KKT_model.u_disjunc = pyo.Constraint(KKT_model.uindex,rule=u_disjunctive)
                 
                 def Ax_b_disjunctive(model,i):
-                    return b[i] - sum(A[i,j]*model.x[j] for j in range(1,n+1)) <= bigM*(1-model.z[i])
+                    return model.b[i] - sum(model.A[i,j]*model.x[j] for j in range(1,n+1))\
+                                    <= bigM*(1-model.z[i])
                 
                 KKT_model.Ax_b_disjunc = pyo.Constraint(KKT_model.uindex,rule=Ax_b_disjunctive)
             
             ##### Step 3: Equality Constraints #####
             if p>0:
                 def KKT_equality_constraints(model,i):
-                    return sum(D[i,j]*model.x[j] for j in range(1,n+1)) == f[i]
+                    return sum(model.D[i,j]*model.x[j] for j in range(1,n+1)) == model.f[i]
                 
                 KKT_model.equality_conditions = pyo.Constraint(KKT_model.xindex,\
                                                     rule=KKT_equality_constraints)            
