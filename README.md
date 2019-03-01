@@ -16,7 +16,7 @@ Note: We reference a "chapter" at times in the files. This refers to the extensi
 	* The `testing_gio_generating_epsilon_c` folder contains the validation scripts for the GIO model methods within the `GIO` class.
 	* The `testing_gio_rho` folder contains the validation scripts for the coefficient of complementarity (rho) methods.
 
-
+* In the `online_IO_files` folder, we have **in progress** code for implementing state-of-the-art online inverse optimization methods.  This folder is changing quite a bit right-now and is **no-where near usage level yet**.  Not bleeding edge, nothing.  However, interested parties can be entertained by my various  (changing) comments in the files.
 
 
 ## Specifications for Set-up of Code ##
