@@ -9,16 +9,19 @@ import pyomo.environ as pyo
 from pyomo.opt import SolverFactory 
 from pyomo.opt import SolverStatus, TerminationCondition
 import pyomo.mpec as pyompec #for the complementarity
+import math
 
 class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
     
     def __init__(self,initial_model,Qname='Q',cname='c',Aname='A',bname='b',Dname='D',fname='f',\
-                 dimQ=(1,1),dimc=(1,1),dimA=(1,1),dimD=(1,1),binary_mutable=[0,0,0,0,0,0]):
+                 dimQ=(0,0),dimc=(0,0),dimA=(0,0),dimD=(0,0),binary_mutable=[0,0,0,0,0,0]):
         #TO DO: (1) Might want have the initialization of the names and dimensions
         #as a separate method?  Want to ask Tom's advice
         # (2) Fix the fact that right now you have to define a "dummy_name"
         # parameter in your model
-        # (3) Decide if default values should be the names or 'None'
+        # (3) Decide if the variable default names should be None or the names
+        # (4) Handling the binary_mutable list - ARE WE always going to assume
+        # that c and Q are the mutable things
         
         #FOR NOW we are going with the pyomo model implementation.
         #(Could always utilize numpy to create the parameters)
@@ -63,6 +66,12 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         ##### Dong_implicit_update Attributes #####
         self.KKT_conditions_model = None
         self.loss_model_dong = None
+        self.noisy_decision_dong = None #holds the next noisy decision 
+                                        #(if passed in, assume numpy column vector)
+        self.dong_iteration_num = 1
+        self.c_t_dong = None
+        self.update_model_dong = None
+        self.losses_dong = [] #MIGHT CHANGE to numpy data at some point
     
     
     def initialize_IO_method(self,alg_specification):
@@ -70,7 +79,16 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         if alg_specification=="Dong_implicit_update":
             ##FOR NOW assuming that we are passing in a Pyomo model
             
-            self.alg_specification = alg_specification
+            self.alg_specification = alg_specification #Step 0: set algorithm name
+            
+            #### Step 1: Obtain c values to put into c_t_guess ####
+            #We assume that the initial guess for c_t is in the parameter
+            #that corresponds with c
+            data = getattr(self.initial_model,self.model_data_names['c'])
+            data = data.extract_values() #produces a dictionary
+            self.c_t_dong = data 
+                    
+            #### Step 2: Construct the Initial KKT conditions Model ####        
             #We can use getattr() to pass in the parameter values into the 
             #compute_KKT_conditions function
             #Thank you to:
@@ -87,8 +105,8 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         
             
     
-    def receive_data(self,p_t,x_t=0):
-        #TO DO: (1) Figure out how to integrate x_t
+    def receive_data(self,p_t=0,x_t=0):
+        #TO DO: 
         # (2) Figure out how to handle the diff parameterizations and
         # changing parameterization of the objective function
         # Might need to call data from previous iteration (might need 
@@ -100,6 +118,11 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         # that is the thing we want to change since we can always regenerate the loss
         # model and other optimization model that we ultimately 
         # (5) DOUBLE CHECK THAT THEY ARE NOT PHASING OUT RECONSTRUCT method
+        # (6) Need to figure out how exactly want to do the passing - should
+        # I just pass x_t to loss_function?  Or maybe want to actually just put
+        # in a parameter that the next method that will implement the iteration will
+        # end up handling
+        # (7) SHOULD THIS HANDLE anything to do with theta?
         
         #I would like this method to handle ALL of the parameter changing
         
@@ -110,44 +133,74 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         #METHOD DESCRIPTION: We are assuming that if a parameter is mutable then the 
         #entire parameter block is mutable.  Users cannot just pass in single values.
         
+        #We set values for p_t and x_t to make things versitle right now. (MIGHT END UP CHANGING)
+        
         if self.alg_specification is None:
             print("Error: Must initialize an online algorithm before using this method. ",\
                   "You will need to use .initialize_IO_method.")
             return
         elif self.alg_specification == "Dong_implicit_update":
-            for (class_pname,user_pname) in self.model_data_names_mutable.items():
-                data = p_t[user_pname]
-                getattr(self.KKT_conditions_model,class_pname).clear() #clearing the attribute
-                getattr(self.KKT_conditions_model,class_pname).reconstruct(data) #reconstruct the attribute
-                #setattr(self.KKT_conditions_model,class_pname,data)
+            if p_t != 0:
+                for (class_pname,user_pname) in self.model_data_names_mutable.items():
+                    data = p_t[user_pname]
+                    getattr(self.KKT_conditions_model,class_pname).clear() #clearing the attribute
+                    getattr(self.KKT_conditions_model,class_pname).reconstruct(data) #reconstruct the attribute
+                    #setattr(self.KKT_conditions_model,class_pname,data)
+            if x_t != 0:
+                self.noisy_decision_dong = x_t #putting the noisy decision in an 
+                                            #attribute that can be shared among the other methods
+    
+    def next_iteration(self):
+        #DONG TO DO LIST:
+        # (1) FOR THE LOSS function, I don't think we need u param anymore
+        # (2) Figure out whether THIS method or the receive_data method 
+        # should be the one to update theta - REALLY NEED TO FIGURE OUT
+        # THE THETA BOOK KEEPING STUFF (remember, made c a fixed variable)
+        # (3) IMPLEMENT THE UPDATE RULE!!! - need to define another method 
+        # to form the update rule model from KKT_conditions_model (need
+        # to pass in the learning rate (and maybe we would add parameters to 
+        # this method and the loss function to update c_t))
         
         
+        # METHOD DESCRIPTION: This method carries out another iteration of 
+        # the algorithm with which the instance of the object has been working 
         
-    def compute_KKT_conditions(self,dimQ=(1,1),dimc=(1,1),dimA=(1,1),\
-                               dimD=(1,1),use_numpy=0,bigM=10000):
+        #Maybe I can implement the passing in of the theta
+        #by setting a c attribute that gets initially filled
+        #when I initiate Dong et al, then the attribute gets updated with
+        #new parameter update at the end of the algorithm
+        
+        if self.alg_specification is None:
+            print("Error: Must initialize an online algorithm before using this method. ",\
+                  "You will need to use .initialize_IO_method.")
+            return
+        elif self.alg_specification == "Dong_implicit_update":
+            self.dong_iteration_num = self.dong_iteration_num + 1 #increasing the iteration count
+            ### Step 1: Calculating Loss ###
+            loss_this_iteration = self.loss_function(y=self.noisy_decision_dong,\
+                                            theta=self.c_t_dong,if_solve=1)
+            self.losses_dong.append(loss_this_iteration)
+            
+            #### Step 2: Update Rule ####
+            eta = 1/(math.sqrt(self.dong_iteration_num))
+            
+            self.c_t_dong = self.update_rule_optimization_model(y=self.noisy_decision_dong,\
+                                                theta=self.c_t_dong,eta_t=eta)
+        
+        
+    def compute_KKT_conditions(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
+                               dimD=(0,0),use_numpy=0,bigM=10000):
         
         #TO DO: 
         # (1) Need to deal with non-negativity constraints upon the x
         # (or we could force ppl to put these in Ax <= b.... but probably shouldnt...)
-        # (2) Will have to deal with mutability stuff at some point...(just in general
-        # somehow telling the class where the mutable data is will be the problem)
-        #       (a) One idea might be to actually assign the parameter objects into
-        #       the KKT_model pyomo model -> like KKT_model.A = A (need to see if can do)
-        #       This MIGHT allow their already predefined mutability to come with them
-        #       (since I'm making users define mutability before using my code)
-        #       Will still need to get users to ID which param name is mutable
-        #       In order for me to be able to update...
-        #       Can test if all of this works by writing a new method to update!
-        
-        #       A is actually a container that contains Amat
-        #       Wonder if I should just force everyone into calling things the way I want them to do so....
-        #       Really want to copy over a parameter component to another model.... and then rename it
-        #       This behavior is not supported by Pyomo; components must have a
-        #       single owning block (or model), and a component may not appear
-        #       multiple times in a block.  If you want to re-name or move this
-        #       component, use the block del_component() and add_component() methods.
+        # (2) Need to change c (and maybe Q) to variables - FOR NOW, do c as a variable
         # (3) Might want to not define variables that we don't need to (us and vs)
         # (4) More cases for Stationarity conditions
+        # (5) CHANGING THE bigM setting thing (actually putting in place a more scientific
+        # way of finding bigM)
+        # (6) FIX 
+        # (7) Maybe make a separate Dong class for the Dong methods?
         
         ##We are going to assume that the Pyomo model is of the following form:
         ## min f(x) = (1/2) x^t Q x + c^T x
@@ -213,12 +266,15 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
                 else:
                     data = getattr(self.initial_model,self.model_data_names[param_name])
                     data = data.extract_values()
-                    if param_name == 'Q':
+                    if param_name == 'Q': 
                         setattr(KKT_model,param_name,pyo.Param(KKT_model.xindex,KKT_model.xindex,\
                                     initialize=data,mutable=self.if_mutable[i]))
-                    elif param_name == 'c':
-                        setattr(KKT_model,param_name,pyo.Param(KKT_model.xindex,\
-                                    initialize=data,mutable=self.if_mutable[i]))
+                    elif param_name == 'c': #THINK I NEED TO ACTUALLY MAKE THESE VARIABLES (need to figure out
+                                            #if need to change the mutability thing around)
+                        setattr(KKT_model,param_name,pyo.Var(KKT_model.xindex))
+                        getattr(KKT_model,param_name).fix(0) #.fix method can take in a value and
+                                        #set all the variables to that value
+                        
                     elif param_name == 'A':
                         setattr(KKT_model,param_name,pyo.Param(KKT_model.uindex,KKT_model.xindex,\
                                     initialize=data,mutable=self.if_mutable[i]))
@@ -232,16 +288,6 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
                         setattr(KKT_model,param_name,pyo.Param(KKT_model.vindex,\
                                     initialize=data,mutable=self.if_mutable[i]))
                         
-                
-            #pdb.set_trace()
-#                if self.model_data_names['Q'] == 'None':
-#                    pass #continue onward
-#                else:
-#                    Q_data = getattr(self.initial_model,self.model_data_names['Q'])
-#                    Q_data = Q_data.extract_values()
-#                    KKT_model.Q = pyo.Param(KKT_model.xindex,KKT_model.xindex,\
-#                                    initialize=Q_data,mutable=)
-            
             
             ##### Step 1: Write out the Stationarity Conditions #####
             
@@ -315,7 +361,7 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         #### Putting Model into Instance Attribute ####
         self.KKT_conditions_model = KKT_model #putting model into attribute
         
-    def loss_function(self,y,u=0,theta=0,if_solve=1):
+    def loss_function(self,y,theta=0,if_solve=1):
         #TO DO: 
         # (1) **Add in the ability to pass in theta and u (which is a BIG need)
         # This function is not at all doing its job until we can do this^
@@ -327,13 +373,28 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         #Dong et al.
         #In order to run this method, would need to run the 
         #initialize method first. 
+        #We do not have a parameter for u because u would have been taken
+        #care of in the ``receive_data'' method
         
         #We assume that y has the same dimensions as x, and we also assume that
         #y is inputted as a numpy column vector.
         
         loss_model = self.KKT_conditions_model #copying over the KKT_conditions_model
+                                                #When we run the receive_data method,
+                                                #this should get updated
         
-        ##### Step 1: Add in the Objective Function #####
+        ##### Step 1: Update the c in the model with theta #####
+        ### We need to take the theta parameter (which is the c data)
+        ## and put it in the c variables which are fixed
+        
+        #From the runs of things, looks like we don't need to unfix the
+        #variables in order to reset their values (just have to pass
+        #in a dictionary with the right key values)
+        
+        loss_model.c.set_values(theta) #can just use c directly since copied
+                                        #over the KKT_conditions_model
+        
+        ##### Step 2: Add in the Objective Function #####
         (n,ph) = np.shape(y) #getting dimensions of y
         
         def loss_objective_rule(model):
@@ -342,7 +403,7 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         loss_model.obj_func = pyo.Objective(rule=loss_objective_rule)
         
         
-        ##### Step 2: Solve the loss_model #####
+        ##### Step 3: Solve the loss_model #####
         solver = SolverFactory("gurobi") #right solver to use because of 
                                         #nonlinear objective function and the 
                                         #possible binary variables
@@ -352,6 +413,64 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         
         ##Putting Model in Attribute##
         self.loss_model_dong = loss_model
+        
+        return loss_model.obj_func.value
+    
+    def update_rule_optimization_model(self,y,theta,eta_t):
+        
+        #TO DO: (1) Decide if want to pass "None" into the unfixed variables
+        # (as their like starting values)
+        #Problem will be that we would need a dictionary of None
+        #would need the number of variables. - which I think there is a 
+        #parameter in the KKT_conditions_model (or I'll make one)
+        
+        #METHOD DESCRIPTION: This method will construct the update rule optimization
+        #model for the Dong et al. algorithm. 
+        
+        #Inputs: y - (as the ``noisy decision'' from Dong et al lingo) assumed
+        #to be a numpy column vector
+        #theta - as the last guess for the parameterization of c, assumed to
+        #be a dictionary
+        #eta - the ``learning rate'' 
+        
+        ### Step 1: Copy over the KKT_conditions_model to update_rule_model ###
+        ### and unfix the c variables ###
+        update_rule_model = self.KKT_conditions_model 
+        
+        update_rule_model.c.unfix() #unfix the c variables
+        
+        ### Step 2: Create the Objective Function ###
+        #Decided that I want these to be stand alone methods, so I will have
+        #the mechanics methods pass into them
+        update_rule_model.c_t = pyo.Param(update_rule_model.xindex,\
+                                          initialize=theta) #MAYBE DIDNT actually need this
+        
+        def obj_rule_update(model):
+            norm_c_ct = sum((model.c[i] - model.c_t[i])**2 for i in range(1,len(model.x)+1)) #LEN FUNC HERE
+            norm_yt_x = sum((y[i-1,0] - model.x[i])**2 for i in range(1,len(model.x)+1))
+            return 0.5*norm_c_ct + eta_t*norm_yt_x
+        
+        update_rule_model.obj_func = pyo.Objective(rule=obj_rule_update)
+        
+        
+        ### Step 3: Solve the Model and Obtain the Next Guess at Theta ###
+        solver = SolverFactory("gurobi") #right solver to use because of 
+                                        #nonlinear objective function and the 
+                                        #possible binary variables
+        
+        results = solver.solve(update_rule_model,tee=True)
+        print("This is the termination condition:",results.solver.termination_condition)
+        
+        ## Putting Model in Attribute and Returning Guess at Theta ##
+        self.update_model_dong = update_rule_model
+        
+        new_c_t = update_rule_model.c.extract_values() #gives back a dictionary
+        
+        return new_c_t
+        
+        
+        
+        
         
         
     

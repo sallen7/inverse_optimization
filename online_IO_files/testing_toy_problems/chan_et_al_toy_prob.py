@@ -57,6 +57,8 @@ test_model.obj_func = pyo.Objective(rule=obj_rule_func)
 
 test_model.dummy_param = pyo.Param()
 
+pdb.set_trace()
+
 
 #### Creating an Instance of the Class with Chan et al. Model ####
 #def __init__(self,initial_model,Qname='Q',cname='c',Aname='A',bname='b',Dname='D',fname='f',\
