@@ -9,6 +9,7 @@ import numpy as np
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory 
 from pyomo.opt import SolverStatus, TerminationCondition
+from pyomo.core.expr import current as EXPR
 
 #print(sys.path)
 #pdb.set_trace()

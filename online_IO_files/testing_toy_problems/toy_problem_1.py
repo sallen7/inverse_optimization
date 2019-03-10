@@ -6,6 +6,8 @@ import pyomo.environ as pyo
 from pyomo.opt import SolverFactory 
 from pyomo.opt import SolverStatus, TerminationCondition
 
+from pyomo.core.expr import current as EXPR
+
 #Should go back and turn maybe the A mat or b vec into a mutable param
 
 #Messing with the KKT condition stuff first is a good idea because will set
@@ -42,7 +44,7 @@ for i in toyprob1.component_objects(pyo.Constraint,active=True): #not sure if we
         if i[index].lower is None:
             #Thanks to https://stackoverflow.com/questions/3965104/not-none-test-in-python
             #and https://docs.quantifiedcode.com/python-anti-patterns/readability/comparison_to_none.html 
-            #for the recommendation
+            #for the recommendation 
             print("This constraint is not bounded below, thus is a <= constraint")
         else:
             print("this is lower bound :",i[index].lower.value)

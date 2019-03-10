@@ -1,6 +1,13 @@
 #### Class for Online Inverse Optimization Methods ####
 ##These methods come from Dong et al. 2018 and B\"armann et al. 2018
 
+#LEFT OFF: Finished rough draft of the Dong algorithm and the mechanics
+#methods.  Need to now work on designing the validation for the mechanics (and
+#basic stuff for the algorithm pieces) AND work on documentation for 
+#the stuff as we go with the validation
+
+#Will want to check that the parameters are being set the way we want them to
+#be set (so will want multiple unittest units to confirm this stuff)
 
 
 import pdb #for debugging
@@ -11,7 +18,7 @@ from pyomo.opt import SolverStatus, TerminationCondition
 import pyomo.mpec as pyompec #for the complementarity
 import math
 
-class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
+class Online_IO(): 
     
     def __init__(self,initial_model,Qname='Q',cname='c',Aname='A',bname='b',Dname='D',fname='f',\
                  dimQ=(0,0),dimc=(0,0),dimA=(0,0),dimD=(0,0),binary_mutable=[0,0,0,0,0,0]):
@@ -105,7 +112,7 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         
             
     
-    def receive_data(self,p_t=0,x_t=0):
+    def receive_data(self,p_t=None,x_t=None):
         #TO DO: 
         # (2) Figure out how to handle the diff parameterizations and
         # changing parameterization of the objective function
@@ -138,15 +145,15 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         if self.alg_specification is None:
             print("Error: Must initialize an online algorithm before using this method. ",\
                   "You will need to use .initialize_IO_method.")
-            return
+            return 0
         elif self.alg_specification == "Dong_implicit_update":
-            if p_t != 0:
+            if p_t is not None:
                 for (class_pname,user_pname) in self.model_data_names_mutable.items():
                     data = p_t[user_pname]
                     getattr(self.KKT_conditions_model,class_pname).clear() #clearing the attribute
                     getattr(self.KKT_conditions_model,class_pname).reconstruct(data) #reconstruct the attribute
                     #setattr(self.KKT_conditions_model,class_pname,data)
-            if x_t != 0:
+            if x_t is not None:
                 self.noisy_decision_dong = x_t #putting the noisy decision in an 
                                             #attribute that can be shared among the other methods
     
@@ -173,7 +180,7 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         if self.alg_specification is None:
             print("Error: Must initialize an online algorithm before using this method. ",\
                   "You will need to use .initialize_IO_method.")
-            return
+            return 0
         elif self.alg_specification == "Dong_implicit_update":
             self.dong_iteration_num = self.dong_iteration_num + 1 #increasing the iteration count
             ### Step 1: Calculating Loss ###
@@ -194,13 +201,10 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         #TO DO: 
         # (1) Need to deal with non-negativity constraints upon the x
         # (or we could force ppl to put these in Ax <= b.... but probably shouldnt...)
-        # (2) Need to change c (and maybe Q) to variables - FOR NOW, do c as a variable
         # (3) Might want to not define variables that we don't need to (us and vs)
         # (4) More cases for Stationarity conditions
         # (5) CHANGING THE bigM setting thing (actually putting in place a more scientific
         # way of finding bigM)
-        # (6) FIX 
-        # (7) Maybe make a separate Dong class for the Dong methods?
         
         ##We are going to assume that the Pyomo model is of the following form:
         ## min f(x) = (1/2) x^t Q x + c^T x
@@ -211,27 +215,6 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
         # We also assume that each of the necessary parameters for the KKT conditions
         # are in pyomo parameter objects (and we assume that A and D have not been transposed
         # already)
-        
-        #We also need users to provide if they are using numpy matrices or Pyomo parameter
-        #values.  If use_numpy=0, then this means that we are using pyomo parameter
-        #objects (you can indeed specifically pass in parameter objects into a variable!). 
-        #With use_numpy=0, this also means that the user will need to provide the 
-        #dimensions of the parameter values (as two dimensional tuples)
-        
-        #If use_numpy=1, then we know that Q,c,A,D are numpy arrays.
-        
-        ##############################################
-                
-        ### We can create dope generators from some of the methods in the 
-        ### developers/AML guide - might help us iterate through
-        ### the parameter objects and maybe we wont even have to make 
-        ### people provide the dimensions (esp if can get to return the keys!)
-        ## although may need people to acknowledge existance of or nonexistance
-        ## of things
-        
-        #Some of the stuff seems to be for the BLOCK components
-        
-        #extract_values()
         
         #############################################
         KKT_model = pyo.ConcreteModel()
@@ -274,6 +257,7 @@ class Online_IO(): #SHOULD WE RENAME THE FILE SLIGHTLY
                         setattr(KKT_model,param_name,pyo.Var(KKT_model.xindex))
                         getattr(KKT_model,param_name).fix(0) #.fix method can take in a value and
                                         #set all the variables to that value
+                        KKT_model.c.set_values(data) #NEW CHANGE: we are setting the values FOR NOW to the c_data we took in
                         
                     elif param_name == 'A':
                         setattr(KKT_model,param_name,pyo.Param(KKT_model.uindex,KKT_model.xindex,\
