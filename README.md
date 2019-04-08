@@ -18,7 +18,15 @@ Note: We reference a "chapter" at times in the files. This refers to the extensi
 	* The `testing_gio_rho` folder contains the validation scripts for the coefficient of complementarity (rho) methods.
 	* **NOTE:** We recently introduced this file structure and, thus, still need to go back and add the import statements for the modulated `GIO` class into the testing scripts and the demo Jupyter notebook (see next section for more information).
 
-* In the `online_IO_files` folder, we have **in progress** code for implementing state-of-the-art online inverse optimization methods.  This folder is changing quite a bit right-now and is **no-where near usage level yet**.  Not bleeding edge, nothing.  However, interested parties can be entertained by my various  (changing) comments in the files.
+* In the `online_IO_files` folder, we have **in progress** code for implementing state-of-the-art online inverse optimization methods.  This folder is changing quite a bit right-now and is **no-where near usage level yet**.  Not bleeding edge, nothing.  However, interested parties can be entertained by my various  (changing) comments in the files.  These are the references for the papers we are implementing:
+	
+	Dong, Chaosheng, Yiran Chen, and Bo Zeng. "Generalized Inverse Optimization through Online Learning." *Advances in Neural Information Processing Systems.* 2018.
+
+	Bärmann, Andres, Alexander Martin, Sebastian Pokutta, Oskar Schneider. An Online-Learning Approach to Inverse Optimization. *arXiv preprint arXiv:1810.12997.* (2018).
+
+A more preliminary version of this last paper can be cited as follows:
+
+	Bärmann, Andreas, Sebastian Pokutta, and Oskar Schneider. "Emulating the expert: inverse optimization through online learning." *Proceedings of the 34th International Conference on Machine Learning-Volume 70.* JMLR. org, 2017.
 
 
 ## Specifications for Set-up of Code ##
