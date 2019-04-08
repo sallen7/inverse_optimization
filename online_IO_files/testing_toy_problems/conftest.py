@@ -199,7 +199,6 @@ def chan_compute_KKT_2():
     return test_online  
 
 
-
 @pytest.fixture
 def chan_receive_data():
     #Fixture 2: Checking the initialize_IO_method
@@ -240,5 +239,186 @@ def chan_receive_data():
     test_online.receive_data(x_t = x0)
     
     return test_online 
+
+@pytest.fixture
+def quadratic_non_neg_NW():
+    ## Quadratic Example from pg 452-453 Nocedal and Wright
+    #Has quadratic objective, equality constraints
+    #The Q matrix is symmetric positive definite.
+    
+    Gmat = np.array([[6,2,1],[2,5,2],[1,2,4]]) #actually a Q matrix
+    Amat = np.array([[1,0,1],[0,1,1]]) #actually a D matrix
+    
+    ### Setting Up the Model ###
+    test_model = pyo.ConcreteModel()
+    test_model.varindex = pyo.RangeSet(3)
+    test_model.numvars = pyo.Param(initialize=3)
+    test_model.eqindex = pyo.RangeSet(2)
+    test_model.numeqs = pyo.Param(initialize=2)
+    
+    ### Importing the G and A Matrices as Parameters ###
+    #A matrix now contains the parameters for the equality constriants
+    def A_mat_func(model,i,j):
+        return Amat[i-1,j-1]
+    
+    test_model.Amatrix = pyo.Param(test_model.eqindex,test_model.varindex,rule=A_mat_func)
+    
+    def G_mat_func(model,i,j): #which is the Q matrix
+        return Gmat[i-1,j-1]
+    
+    test_model.Gmatrix = pyo.Param(test_model.varindex,test_model.varindex,rule=G_mat_func)
+    
+    ### Defining the Vector Parameters ###
+    #bvector now contains the RHS for the equality constraints
+    test_model.cvector = pyo.Param(test_model.varindex,initialize={1:-8,2:-3,3:-3})
+    test_model.bvector = pyo.Param(test_model.eqindex,initialize={1:3,2:0})
+    
+    
+    test_online = Online_IO(test_model,Qname='Gmatrix',cname='cvector',\
+            Aname='None',bname='None',Dname='Amatrix',fname='bvector',\
+            dimQ=(3,3),dimc=(3,1),dimD=(2,3),binary_mutable=[0,0,0,0,0,1],non_negative=0)
+    
+    test_online.initialize_IO_method("Dong_implicit_update")
+    
+    ### Adding Objective Function: As long as Satisfy KKT N&S then
+    ## Can use Constant Objective Function 
+    test_online.KKT_conditions_model.obj_func = pyo.Objective(expr=5)
+    
+    return test_online
+
+@pytest.fixture
+def quadratic_portfolio_Gabriel_KKT():
+    #Example from Dr. Gabriel's ENME741 and ENME725 Class
+    #Variation on the Classical Portfolio Example
+    
+    ### Data ###
+    V = np.array([[4.2,-1.9,2],[-1.9,6.7,-5],[2,-5,7]])    
+    
+    ### Setting Up the Model ###
+    test_model = pyo.ConcreteModel()
+    test_model.varindex = pyo.RangeSet(3)
+    test_model.numvars = pyo.Param(initialize=3)
+    test_model.eqindex = pyo.RangeSet(1)
+    test_model.numeq = pyo.Param(initialize=1)
+    
+    ### Inputting Params ###
+    #Need to remember that the inequalities are Ax <= b (so flip things
+    #as needed)
+    #Need to also make clear what assumptions you are making about the structure
+    #of your data.
+    test_model.DMaTrix = pyo.Param(test_model.eqindex,\
+        test_model.varindex,initialize={(1,1):1,(1,2):1,(1,3):1})
+    test_model.f = pyo.Param([1],initialize={1:1})
+    test_model.AmAtRix = pyo.Param(test_model.eqindex,\
+        test_model.varindex,initialize={(1,1):-10,(1,2):-20,(1,3):-30})
+    test_model.b = pyo.Param([1],initialize={1:-20})
+    
+    def V_mat_func(model,i,j): #which is the Q matrix
+        return V[i-1,j-1]
+    
+    test_model.Vmat = pyo.Param(test_model.varindex,test_model.varindex,\
+                                rule=V_mat_func)
+    
+    #Need a dummy c because it is basically the only parameter in which
+    #we absolutely assume we have
+    test_model.cdummy = pyo.Param(test_model.varindex,initialize={1:0,2:0,3:0})
+    
+    #REMEMBER: this is the model in which we SPECIFY non-negative variables
+    test_online = Online_IO(test_model,Qname='Vmat',cname='cdummy',\
+            Aname='AmAtRix',bname='b',Dname='DMaTrix',fname='f',\
+            dimQ=(3,3),dimc=(3,1),dimA=(1,3),dimD=(1,3),\
+            binary_mutable=[0,0,0,1,0,0],non_negative=1)
+    
+    test_online.initialize_IO_method("Dong_implicit_update")
+    
+    ### Adding Objective Function: As long as Satisfy KKT N&S then
+    ## Can use Constant Objective Function 
+    test_online.KKT_conditions_model.obj_func = pyo.Objective(expr=5)
+    
+    return test_online
+    
+@pytest.fixture
+def quadratic_portfolio_Gabriel_change_data():
+    #Example from Dr. Gabriel's ENME741 and ENME725 Class
+    #Variation on the Classical Portfolio Example
+    
+    ### Data ###
+    V = np.array([[4.2,-1.9,2],[-1.9,6.7,-5],[2,-5,7]])    
+    
+    ### Setting Up the Model ###
+    test_model = pyo.ConcreteModel()
+    test_model.varindex = pyo.RangeSet(3)
+    test_model.numvars = pyo.Param(initialize=3)
+    test_model.eqindex = pyo.RangeSet(1)
+    test_model.numeq = pyo.Param(initialize=1)
+    
+    ### Inputting Params ###
+    #Need to remember that the inequalities are Ax <= b (so flip things
+    #as needed)
+    #Need to also make clear what assumptions you are making about the structure
+    #of your data.
+    test_model.DMaTrix = pyo.Param(test_model.eqindex,\
+        test_model.varindex,initialize={(1,1):1,(1,2):1,(1,3):1})
+    test_model.f = pyo.Param([1],initialize={1:1})
+    test_model.AmAtRix = pyo.Param(test_model.eqindex,\
+        test_model.varindex,initialize={(1,1):-10,(1,2):-20,(1,3):-30})
+    test_model.b = pyo.Param([1],initialize={1:-20})
+    
+    def V_mat_func(model,i,j): #which is the Q matrix
+        return V[i-1,j-1]
+    
+    test_model.Vmat = pyo.Param(test_model.varindex,test_model.varindex,\
+                                rule=V_mat_func)
+    
+    #Need a dummy c because it is basically the only parameter in which
+    #we absolutely assume we have
+    test_model.cdummy = pyo.Param(test_model.varindex,initialize={1:0,2:0,3:0})
+    
+    #REMEMBER: this is the model in which we SPECIFY non-negative variables
+    test_online = Online_IO(test_model,Qname='Vmat',cname='cdummy',\
+            Aname='AmAtRix',bname='b',Dname='DMaTrix',fname='f',\
+            dimQ=(3,3),dimc=(3,1),dimA=(1,3),dimD=(1,3),\
+            binary_mutable=[0,0,0,1,0,0],non_negative=1)
+    
+    test_online.initialize_IO_method("Dong_implicit_update")
+    
+    ### Modify RHS b ###
+    #For this test, all we are going to do is modify the 
+    #RHS via receive_data and then we are gonna solve the
+    #resulting KKT model to make sure that the RHS got changed correctly
+    #Can do this with the other models too!
+    
+    #Might be able to use the "if_solve" to advantage - could 
+    #put to 0 if just want to generate the loss model and check that
+    #things were initialized properly -NEED TO RE-REMEMBER THE THING I REALIZED
+    #RIGHT BEFORE MY CODE REVIEW ABOUT WRITING UNITTESTS FOR THIS THING
+    test_online.receive_data(p_t={'b':{1:-24}},x_t=[[0],[1]]) #b wasnt part of the stationary_expression, hence
+                                                            #why it ended up working in the test case
+    
+    test_online.KKT_conditions_model.obj_func = pyo.Objective(expr=5)   
+    
+    return test_online
+
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
 

@@ -98,11 +98,9 @@ def test_receive_data(chan_receive_data):
     ##POTENTIALLY ADD MORE STUFF!!
     ##Step 2: Check that the ``noisy observation''
     ##gets put into the correct attribute
-    assert np.all(chan_receive_data.noisy_decision_dong == np.array([[2.5],[3]])) 
-    #NEED TO FIX -  ValueError: The truth value 
-    #of an array with more than one element is ambiguous. Use a.any() or a.all()
-    
-    
+    assert np.all(chan_receive_data.noisy_decision_dong == np.array([[2.5],[3]]))     
+
+
 def test_that_returns_fail(chan_init_instance):    
     ##This test will ensure that the receive_data
     ##and next_iteration methods will not
@@ -125,16 +123,78 @@ def test_that_returns_fail(chan_init_instance):
     assert not chan_init_instance.losses_dong #assert that it is still 
                                             #empty (that no losses have been 
                                             #appended to it)
+                                            #https://stackoverflow.com/questions/53513/how-do-i-check-if-a-list-is-empty
     assert chan_init_instance.c_t_dong is None
     
+def test_NW_quadratic_KKT(quadratic_non_neg_NW):
+    model = quadratic_non_neg_NW.KKT_conditions_model
+    solver = SolverFactory("gurobi") 
+        
+    solver.solve(model)
     
+    assert model.x.extract_values() == {1:2.0,2:-1.0,3:1.0}
+    
+    assert model.v.extract_values() == {1:-3.0,2:2.0} #{1:3.0,2:-2.0}
+    #had to negate the given lambda because N&W Lagrangian assumes a 
+    #slightly different form where the lambdas are subtracted
+    
+    
+def test_Gabriel_quadratic_portfolio_KKT(quadratic_portfolio_Gabriel_KKT):
+    model = quadratic_portfolio_Gabriel_KKT.KKT_conditions_model 
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    ## Rounding the Solution ##
+    solution = model.x.extract_values()
+    for (key,value) in solution.items():
+        solution[key] = round(value,2)
+    
+    assert solution == {1:0.20,2:0.44,3:0.36}
+    
+def test_Gabriel_quadratic_change_data(quadratic_portfolio_Gabriel_change_data):
+    model = quadratic_portfolio_Gabriel_change_data.KKT_conditions_model 
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    ## Rounding the Solution ##
+    solution = model.x.extract_values()
+    for (key,value) in solution.items():
+        solution[key] = round(value,2)   
+    
+    assert solution == {1:0.07,2:0.47,3:0.47} #SHOULD I CHECK MORE THINGS?
     
     
 ###FOR THE update rule test, we still need to see if we should 
 #change the unfixed c values from their current values
+    #WE ALSO NEED TO ALLOW USERS TO RESTRICT DOMAIN OF C
     
+####FOR the loss function, we can test this using our knowledge of the
+##Chan et all paper, bc it is essentially doing a minimum epsilon distance
+##Can check it with the Chan example (with a couple different ys)
+
+###We can test the quadratic capabilities and non-negativity capabilities
+## (coming soon - do we want an upper bound capability? or should we just make ppl
+#in put that as a constraint in the <= ? - Thinking about doing that, but
+#do have to solve the bigM problem)
+#with the example in Dr. Gabriel's lecture 0 with the 
+## portfolio estimation.  We will have to put in dummy data for c
+## (just set to 0) because we basically always assume we have a c
+
+##Haven't quite figured out how to test the update rule itself...
+    #Can I just do what I was planning to do before and form something
+    #on the side?
+
+##Do need to get going on the experiment (if want in time for Jacob
+##and want to keep documenting)    
     
+###### MORE EXAMPLES #######
     
+## REALLY NEED SOMETHING TO TEST OUT THE NEW non_negative thing
+## (2) Portfolio stuff   
+# (a) WE can test out the changing of the b parameter with this
+    #model since we have all of the solutions for the different min returns
     
     
     
