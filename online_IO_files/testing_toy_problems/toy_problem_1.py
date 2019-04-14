@@ -1,5 +1,10 @@
 ### Generating Some Test Models ###
 
+#This is my tinkering file.  Probably won't make much sense to people who are not me
+
+import sys
+sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
+
 import pdb #for debugging
 import numpy as np                     
 import pyomo.environ as pyo
@@ -8,10 +13,40 @@ from pyomo.opt import SolverStatus, TerminationCondition
 
 from pyomo.core.expr import current as EXPR
 
+from online_IO_files.online_IO_source.online_IO import Online_IO #importing the GIO class for testing
+
 #Should go back and turn maybe the A mat or b vec into a mutable param
 
 #Messing with the KKT condition stuff first is a good idea because will set
 #us up well for manipulating pyomo models for the entire class
+
+#checking_diam = pyo.ConcreteModel()
+#checking_diam.cindex = pyo.RangeSet(1)
+#checking_diam.c = pyo.Var(checking_diam.cindex)
+#
+#def diam_constraint_1(model,i):
+#    return model.c[i] <= 7
+#
+#checking_diam.constraint1 = pyo.Constraint(checking_diam.cindex,rule=diam_constraint_1)
+#
+#def diam_constraint_2(model,i):
+#    return 5 <= model.c[i]
+#
+#checking_diam.constraint2 = pyo.Constraint(checking_diam.cindex,rule=diam_constraint_2)
+#
+#checking_diam_object = Online_IO(feasible_set_C=checking_diam)
+#checking_diam_object.compute_learning_rate(dimc=(1,1)) #when said was missing 'self' - meant that wasnt
+#                                #sensing that I was calling this method upon an object
+#                                #STEPH YOU NEVER DO CLASS.METHOD - you instigate a class (create an instance)
+#                                #and then use the methods for that instance
+#
+#
+#    
+#pdb.set_trace()
+
+
+
+##################################################
 
 toyprob1 = pyo.ConcreteModel()
 toyprob1.x = pyo.Var([1,2]) #two x variables
@@ -19,7 +54,10 @@ toyprob1.b_param = pyo.Param([1,2],initialize={1:4,2:6},mutable=True)
 toyprob1.exper_mat = pyo.Param([1,2],[1,2],initialize={(1,1):1,(1,2):2,(2,1):3,(2,2):4})
 #doesn't seem like you can just update with a straight dictionary
 #maybe if I can do a hybrid numpy/pyomo thing
-toyprob1.constraint1 = pyo.Constraint(expr=toyprob1.x[1]-toyprob1.x[2] >= toyprob1.b_param[1])
+def constraint_1_rule(model):
+    return model.x[1]-model.x[2] >= model.b_param[1]
+
+toyprob1.constraint1 = pyo.Constraint(rule=constraint_1_rule)
 toyprob1.constraint2 = pyo.Constraint(expr=2*toyprob1.x[1]+toyprob1.x[2] == toyprob1.b_param[2]) #bounds should be like 0
 
 toyprob1.obj_func = pyo.Objective(expr=5*toyprob1.x[1]-3*toyprob1.x[2])

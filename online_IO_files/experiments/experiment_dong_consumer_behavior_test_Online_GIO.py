@@ -22,7 +22,9 @@ import matplotlib.pyplot as plt #http://www.scipy-lectures.org/intro/matplotlib/
 import pickle
 
 from online_IO_files.online_IO_source.online_IO import Online_IO #importing the GIO class for testing
-from experiment_dong_consumer_behavior_gen_data import num_samples,c_dict
+from experiment_dong_consumer_behavior_gen_data import num_samples,c_dict 
+#^don't need to introduce module sequence because we run this script within the
+#experiments directory
 
 ##### Step 0: Loading the Data & Set Up Model #####
 ###    Load Data    ###
