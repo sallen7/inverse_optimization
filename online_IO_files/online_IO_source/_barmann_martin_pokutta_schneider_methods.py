@@ -1,5 +1,8 @@
 ### Methods for B\"armann, Martin, Pokutta, & Schneider 2018 ###
 
+#NOTE TO SELF: DO NEED TO BAKE IN THE MUTABILITY OF C!! BECAUSE IM SCREWING
+#UP THE UPDATE STEP BY MAKING IT THINK THAT IT NEEDS TO GET A CVEC FOR THE P_t PASS IN
+
 import copy
 import pdb #for debugging
 import numpy as np                     
@@ -43,9 +46,9 @@ def compute_standardized_model(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
     standard_model.vindex = pyo.RangeSet(1,p) #number of equality constraints
     
     if non_negative == 0:
-        standard_model.x = pyo.Var(standard_model.xindex)
+        standard_model.x = pyo.Var(standard_model.xindex,bounds=self.var_bounds)
     elif non_negative == 1: 
-        standard_model.x = pyo.Var(standard_model.xindex,domain=pyo.NonNegativeReals)
+        standard_model.x = pyo.Var(standard_model.xindex,domain=pyo.NonNegativeReals,bounds=self.var_bounds)
     else:
         print("Error: Can only have 0 or 1 for the non-negative parameter")
     
@@ -62,12 +65,8 @@ def compute_standardized_model(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
                             initialize=data,mutable=self.if_mutable[i]))
             elif param_name == 'c': #FOR THIS MODEL: c is NOT a variable
                 setattr(standard_model,param_name,pyo.Param(standard_model.xindex,\
-                            initialize=data,mutable=self.if_mutable[i]))
-                #FOR NOW: NOT GOING TO BAKE IN THE MUTABILITY
-                #setattr(standard_model,param_name,pyo.Var(standard_model.xindex))
-                #getattr(standard_model,param_name).fix(0) #.fix method can take in a value and
-                                #set all the variables to that value
-                #standard_model.c.set_values(data) #NEW CHANGE: we are setting the values FOR NOW to the c_data we took in
+                            initialize=data,mutable=True)) #NEW 4/24/2019 - need to be able to update
+                                    #the c - you CANNOT reconstruct c if it is NOT mutable
             elif param_name == 'A':
                 setattr(standard_model,param_name,pyo.Param(standard_model.uindex,\
                 standard_model.xindex,initialize=data,mutable=self.if_mutable[i]))
@@ -84,7 +83,7 @@ def compute_standardized_model(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
     #### Step 1: Set up the Constraints ####
     # We just need to follow the standard model: We are just transcribing
     # what the user inputted into a standard form
-    
+    #pdb.set_trace()
     if m > 0: #then there are inequality constraints
         def inequality_constraints_rule(model,i):
             return sum(model.A[i,j]*model.x[j] for j in range(1,n+1)) <= model.b[i]
@@ -106,13 +105,13 @@ def compute_standardized_model(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
             xt_Q_x_term = sum(sum(model.Q[i,j]*model.x[i]*model.x[j] for i in range(1,n2+1)) for j in range(1,n2+1))
             return (0.5)*xt_Q_x_term + sum(model.c[j]*model.x[j] for j in range(1,n+1))
         
-        standard_model.obj_func = pyo.Objective(rule=obj_func_with_Q)
+        standard_model.obj_func = pyo.Objective(rule=obj_func_with_Q,sense=pyo.minimize)
         
     elif n2 == 0: #if there is NO Q
         def obj_func_without_Q(model):
             return sum(model.c[j]*model.x[j] for j in range(1,n+1))
         
-        standard_model.obj_func = pyo.Objective(rule=obj_func_without_Q)
+        standard_model.obj_func = pyo.Objective(rule=obj_func_without_Q,sense=pyo.minimize)
     
     else:
         print("Incorrect value for dim of Q.  Somehow you put in a negative value...")
@@ -147,7 +146,7 @@ def compute_diam_F(self,dimc=(0,0)):
     ##### Step 1: Find the Diameter of the Set F (set C) #####
     #Going to assume the variable is named c in this case
     
-    set_C = self.feasible_set_C.clone()
+    set_C = self.feasible_set_C.clone() #MAKE SURE ALL THE DATA STUFF HAPPENED CORRECTLY - THAT ME REMOVING CLONE FROM FEASIBLE SET WASNT A PROBLEM
     (n,ph) = dimc #getting number of variables
     
     set_C_squared = pyo.ConcreteModel() #creating another Pyomo model with two copies of
@@ -166,14 +165,14 @@ def compute_diam_F(self,dimc=(0,0)):
     set_C_squared.block1 = pyo.Block(rule=set_C_block_func)
     set_C_squared.block2 = pyo.Block(rule=set_C_block_func) #should create TWO sets of variables
     
-    pdb.set_trace()
+    #pdb.set_trace()
     
     ### Defining Equalities for y[i] = c1[i] - c2[i] ###
     set_C_squared.cvarindex = pyo.RangeSet(n)
     set_C_squared.y = pyo.Var(set_C_squared.cvarindex)
     
     def equalities_for_c_and_y(model,i):
-        return model.block1.c[i]-model.block2.c[i] == set_C_squared.y[i]
+        return model.block1.c[i]-model.block2.c[i] == model.y[i]
     
     set_C_squared.equality_for_c_and_y = pyo.Constraint(set_C_squared.cvarindex,\
                                                 rule=equalities_for_c_and_y)
@@ -188,12 +187,16 @@ def compute_diam_F(self,dimc=(0,0)):
     ### Solving ###
     solver = SolverFactory("gurobi") #going to go with most high power solver for now
     
-    results = solver.solve(set_C_squared)
+    results = solver.solve(set_C_squared,tee=True)
     print("This is the termination condition (update rule):",results.solver.termination_condition)
     
     print("This is the objective function value (multiplied by -1 and then square rooted):",math.sqrt(-1*pyo.value(set_C_squared.obj_func)))
     
     self.D = math.sqrt(-1*pyo.value(set_C_squared.obj_func))
+    
+    pdb.set_trace()
+    
+    #pdb.set_trace()
     
     #might need a RETURN statement, depending upon how implement this stuff
     #in the online_IO shared methods
@@ -208,17 +211,30 @@ def compute_diam_X_pt(self,dimc=(0,0)):
     
     # Going to assume that the compute_standardized_model method has been called
     # before this AND going to assume has been updated
+    
+    #NEED A LOWER BOUND!! - YOU NEED TO HAVE A BOUNDED FEASIBLE REGION!
+    
     BMPS_subproblem = self.BMPS_subproblem.clone()
     (n,ph) = dimc #getting number of variables
     
     set_X_pt_squared = pyo.ConcreteModel()
     
+    #pdb.set_trace() #I THINK WE NEED TO BRING IN THE PARAMETERS INTO THE BLOCKS
+    
     def set_X_pt_block_func(b):
         b.xindex = pyo.RangeSet(n)
-        b.x = pyo.Var(b.xindex)
+        if self.non_negative == 1:
+            b.x = pyo.Var(b.xindex,domain=pyo.NonNegativeReals)
+        else:
+            b.x = pyo.Var(b.xindex)
         #For this to work, will need to require people to define
         #constraints with model.x
+        for param in BMPS_subproblem.component_objects(pyo.Param):
+            #pdb.set_trace()
+            setattr(b,param.name,pyo.Param(param._index,initialize=param._data))
+            #WILL NEED TO SEE IF THE _index DOES THE RIGHT INDICE STUFF FOR A?        
         for constr in BMPS_subproblem.component_objects(pyo.Constraint):
+            #pdb.set_trace()
             setattr(b,constr.name,pyo.Constraint(constr._index,rule=constr.rule)) #should use the 
             #rule functions from the previous model WITH the new variables
             #because we made the rules as involving model.x
@@ -231,7 +247,7 @@ def compute_diam_X_pt(self,dimc=(0,0)):
     set_X_pt_squared.y = pyo.Var(set_X_pt_squared.xvarindex)
     
     def equalities_for_y_and_x(model,i):
-        return set_X_pt_squared.y[i] == set_X_pt_squared.block1.x[i] - set_X_pt_squared.block2.x[i]
+        return model.block1.x[i] - model.block2.x[i] == model.y[i]
     
     set_X_pt_squared.equalities_constraints = pyo.Constraint(set_X_pt_squared.xvarindex,\
                                                     rule=equalities_for_y_and_x)
@@ -241,6 +257,8 @@ def compute_diam_X_pt(self,dimc=(0,0)):
         return -1*sum((model.y[i])**2 for i in range(1,n+1)) #minimizing the objective
     
     set_X_pt_squared.obj_func = pyo.Objective(rule=set_X_pt_obj_func)
+    
+    #pdb.set_trace()
     
     ### Solving ###
     solver = SolverFactory("gurobi") #going to go with most high power solver for now
@@ -277,6 +295,8 @@ def project_to_F(self,dimc=(0,0),y_t=None):
     (n,ph) = dimc
     region_F = self.feasible_set_C.clone()
     
+    #pdb.set_trace()
+    
     ### Adding Objective Function to Region_F ###
     def obj_func_region_F(model):
         return sum((model.c[j] - y_t[j-1,0])**2 for j in range(1,n+1))
@@ -292,7 +312,8 @@ def project_to_F(self,dimc=(0,0),y_t=None):
     ### Extracting Solution ###
     ct_vals = region_F.c.extract_values() #obtain a dictionary
     
-    self.c_t_BMPS = ct_vals #ct_col_vec #will need to update subproblem with this
+    self.c_t_BMPS = ct_vals ##will need to update subproblem with this 
+                            #(hence need to keep in dictionary format)
     
     
 def solve_subproblem(self):
@@ -322,8 +343,11 @@ def gradient_step(self,eta_t,x_t):
     ct_vals = copy.deepcopy(self.c_t_BMPS)
     ct_vec = np.fromiter(ct_vals.values(),dtype=float,count=len(ct_vals))
     ct_col_vec = np.reshape(ct_vec,(len(ct_vals),1))
+    self.c_t_BMPS = copy.deepcopy(ct_col_vec) #replacing with vector
     
-    y_t = ct_col_vec - eta_t*(self.xbar_t_BMPS - self.x_t_BMPS)
+    y_t = ct_col_vec - eta_t*(self.x_t_BMPS - self.xbar_t_BMPS) #NEW CODE: 4/24/2019 - flipped the x_t and xbar_t
+    
+    #pdb.set_trace()
     
     return y_t #going to leave it this way for now because I pass in y_t to
     #the next function

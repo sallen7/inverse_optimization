@@ -92,6 +92,8 @@ for ns in range(1,num_samples+1):
     solver = SolverFactory("gurobi")
     solver.solve(forward_model)
     
+    print("done with iteration of DCZ data gen")
+    
     x_t_dict = forward_model.x.extract_values() #get the exact x solution in dictionary form
     y_t_np_array = np.zeros((10,1))
     

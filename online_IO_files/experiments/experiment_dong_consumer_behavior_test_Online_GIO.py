@@ -40,8 +40,6 @@ p_t_samples = pickle.load(pickle_in) #it worked
 pickle_in = open("dong_y_t.pickle","rb")
 y_t_samples = pickle.load(pickle_in)
 
-#pdb.set_trace()
-
 ###    Set up Model    ###
 #a. Sets and Vars
 cb_model = pyo.ConcreteModel()
@@ -98,7 +96,7 @@ online_cb = Online_IO(cb_model,Qname='Qmat',cname='cvec',Aname='p_t',\
 
 online_cb.initialize_IO_method("Dong_implicit_update")
 
-
+ 
 ##### Step 2-3: Iterate Through the Data and, for each iteration, #####
 ##### Run receive_data and next_iteration in Sequence #####
 
@@ -113,8 +111,8 @@ for i in range(1,num_samples+1):
     
     ##Making sure all the constraints were updated appropriately
     #Could make this a part of the online_IO class potentially?
-    for constr in online_cb.KKT_conditions_model.component_objects(pyo.Constraint):
-        assert constr.body != None, "Constraints not being re-rendered correctly"
+    #for constr in online_cb.KKT_conditions_model.component_objects(pyo.Constraint):
+    #    assert constr.body != None, "Constraints not being re-rendered correctly"
     
     #### Step 3: Perform Update Rule ####
     online_cb.next_iteration(eta_factor=5) #go to the next iteration

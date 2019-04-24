@@ -16,6 +16,8 @@ from pyomo.opt import SolverStatus, TerminationCondition
 import pyomo.mpec as pyompec #for the complementarity
 import math
 
+from pyomo.core.expr import current as EXPR #trying something
+
 from online_IO_files.online_IO_source.decorator_for_online_IO import func_adds_methods
 from online_IO_files.online_IO_source._dong_chen_zeng_methods import dong_chen_zeng_funcs #importing the Dong, Chen, Zeng methods
 from online_IO_files.online_IO_source._barmann_martin_pokutta_schneider_methods import barmann_martin_pokutta_schneider_funcs
@@ -27,8 +29,8 @@ from online_IO_files.online_IO_source._barmann_martin_pokutta_schneider_methods 
 class Online_IO(): 
     
     def __init__(self,initial_model=None,Qname='Q',cname='c',Aname='A',bname='b',Dname='D',fname='f',\
-                 dimQ=(0,0),dimc=(0,0),dimA=(0,0),dimD=(0,0),binary_mutable=[0,1,0,0,0,0],non_negative=0,\
-                 feasible_set_C=None):
+                 dimQ=(0,0),dimc=(0,0),dimA=(0,0),dimD=(0,0),binary_mutable=[0,0,0,0,0,0],non_negative=0,\
+                 feasible_set_C=pyo.ConcreteModel(),var_bounds=None):
         
         #We are assuming that binary_mutable is in the order of Q,c,A,b,D,f
         
@@ -65,6 +67,8 @@ class Online_IO():
         
         self.feasible_set_C = feasible_set_C.clone()
         
+        #pdb.set_trace()
+        
         ##### Dong_implicit_update Attributes #####
         self.KKT_conditions_model = None
         self.loss_model_dong = None
@@ -77,6 +81,9 @@ class Online_IO():
         self.losses_dong = [] #MIGHT CHANGE to numpy data at some point
         
         ###### BMPS_online_GD Attributes #####
+        self.var_bounds = var_bounds #if there are variable bounds, 
+                                    #needs to be passed in as a tuple
+                                    #FOR NOW, only enabling for BMPS
         self.BMPS_subproblem = None
         self.D = None
         self.G_max = 0 #initializing max of diam(X_pt)
@@ -85,9 +92,10 @@ class Online_IO():
         self.x_t_BMPS = None
         self.y_t_BMPS = None
         self.BMPS_iteration_number = 0
+        self.if_use_diam = 1
     
     
-    def initialize_IO_method(self,alg_specification):
+    def initialize_IO_method(self,alg_specification,alg_specific_params=None):
         ### Each algorithm has its own set up procedure before the first iteration
         if alg_specification=="Dong_implicit_update":  
             ### Step 0: Set Algorithm Name
@@ -116,6 +124,8 @@ class Online_IO():
             ### Step 0: Set Algorithm Name ###
             self.alg_specification = alg_specification
             
+            #pdb.set_trace()
+            
             ### Step 1: Call Method to Create BMPS_subproblem ###
             self.compute_standardized_model(self.model_data_dimen['Q'],\
                 dimc=self.model_data_dimen['c'],dimA=self.model_data_dimen['A'],\
@@ -124,7 +134,14 @@ class Online_IO():
             ### Step 2: Moving y_t guess (which is c_t) into self.y_t_BMPS ###
             data = getattr(self.initial_model,self.model_data_names['c'])
             data = data.extract_values() #produces a dictionary
-            self.y_t_BMPS = data
+            data_vec = np.fromiter(data.values(),dtype=float,count=len(data))
+            data_vec_col = np.reshape(data_vec,(len(data),1))
+            
+            self.y_t_BMPS = data_vec_col
+            
+            ### Step 3: Checking for Parameters ###
+            if alg_specific_params is not None:
+                self.if_use_diam = alg_specific_params['diam_flag']
         
 
         else:
@@ -199,16 +216,54 @@ class Online_IO():
                 
                 ### Updating c_t in BMPS subproblem (using c_t_BMPS) ###
                 getattr(self.BMPS_subproblem,'c').clear()
-                getattr(self.BMPS_subproblem,'c').reconstruct(self.c_t_BMPS)
+                getattr(self.BMPS_subproblem,'c').reconstruct(self.c_t_BMPS) #doesn't work
+                #and would need to hack the code - not going to do
+                #BACK UP: just delete the objective function and copy and paste the rule from
+                #the _BMPS_methods file - the .c part DOES work
                 
-                for obj in self.BMPS_subproblem.component_objects(pyo.Objective):
-                    obj.reconstruct() #using the objective rule 
+                #Deleting the objective function#
+                #HOPING THIS KEEPS BETWEEN ITERATIONS
+                #REALLY NEED TO CHECK THAT THIS KEEPS AND THAT THE 
+                #INDEXED COMPONENTS ARE BEING reconstructed THE WAY I THINK THEY
+                #ARE SUPPOSED TO BE
+                self.BMPS_subproblem.del_component(self.BMPS_subproblem.obj_func)
+                
+                (n2,ph) = self.model_data_dimen['Q'] #to decide upon the objective rule
+                (n,ph) = self.model_data_dimen['c']
+                
+                ###### Recreating the Objective Function Rule ######
+                if n2 > 0: #if there is indeed a Q (we ALWAYS assume there is a c)
+                    def obj_func_with_Q(model):
+                        xt_Q_x_term = sum(sum(model.Q[i,j]*model.x[i]*model.x[j] for i in range(1,n2+1)) for j in range(1,n2+1))
+                        return (0.5)*xt_Q_x_term + sum(model.c[j]*model.x[j] for j in range(1,n+1))
+                    
+                    self.BMPS_subproblem.obj_func = pyo.Objective(rule=obj_func_with_Q,sense=pyo.minimize)
+                    
+                elif n2 == 0: #if there is NO Q
+                    def obj_func_without_Q(model):
+                        return sum(model.c[j]*model.x[j] for j in range(1,n+1))
+                    
+                    self.BMPS_subproblem.obj_func = pyo.Objective(rule=obj_func_without_Q,sense=pyo.minimize)
+                
+                else:
+                    print("Incorrect value for dim of Q.  Somehow you put in a negative value...")
+                    return        
+                
+                #pdb.set_trace()
+                #EXPR.expression_to_string(self.BMPS_subproblem.obj_func._data[None])
+                
+                
+                ######THIS DOES WORK EVEN THOUGH THE CODE IS CONFUSED########
+                #for obj in self.BMPS_subproblem.component_objects(pyo.Objective):
+                #    obj.reconstruct() #using the objective rule 
                     
                 ### Checking that Everything Has been Constructed at the End of the Update ###
                 # Also going to check the bounds of the constraints
                 for constr in self.BMPS_subproblem.component_objects(pyo.Constraint):
-                    for c in constr:
-                        assert constr[c]._constructed == True, "Error in constraint construction (body)"
+                    #DOES NOT WORK AS WELL AS WE THOUGHT!!!
+                    assert constr._constructed == True, "Error in constraint construction (body)"
+                    for c in constr:#LOOK AT THE JUPYTER NOTEBOOK!!!
+                        #assert constr[c]._constructed == True, "Error in constraint construction (body)"
                         lb = constr[c].lower
                         ub = constr[c].upper
                         assert ((lb is not None) or (ub is not None)), "Error in constraint construction (LHS/RHS)"
@@ -257,7 +312,7 @@ class Online_IO():
             if part_for_BMPS == 1: #part 1 for algorithm
                 ### Step 0: Update Iteration Count ###
                 self.BMPS_iteration_number = self.BMPS_iteration_number + 1
-            
+                #pdb.set_trace()
                 ### Step 1: Project to F (stores the c_t in c_t_BMPS) ###
                 self.project_to_F(dimc=self.model_data_dimen['c'],y_t=self.y_t_BMPS)
             
@@ -267,12 +322,16 @@ class Online_IO():
                 self.solve_subproblem() #obtain xbar
                 
                 ### Step 4: Calculate Learning Rate ###
-                if self.dong_iteration_num < 2: #so if on first iteration, need to compute D
-                    self.compute_diam_F(dimc=self.model_data_dimen['c'])
-                
-                self.compute_diam_X_pt(dimc=self.model_data_dimen['c']) #need to update each iteration
-                
-                eta_calculated = (1/math.sqrt(self.BMPS_iteration_number))*(self.D/self.G_max)                    
+                #Based upon the self.if_use_diam flag (set up in initialization)#
+                if self.if_use_diam == 1: #if we ARE using diameters
+                    if self.dong_iteration_num < 2: #so if on first iteration, need to compute D
+                        self.compute_diam_F(dimc=self.model_data_dimen['c'])
+                    
+                    self.compute_diam_X_pt(dimc=self.model_data_dimen['c']) #need to update each iteration
+                    
+                    eta_calculated = (1/math.sqrt(self.BMPS_iteration_number))*(self.D/self.G_max) 
+                elif self.if_use_diam == 0: #if we are NOT using diameters
+                    eta_calculated = (1/math.sqrt(self.BMPS_iteration_number))
                 
                 ### Step 5: Gradient Descent Step ###
                 #receive_data will have put the x_t into x_t_BMPS
