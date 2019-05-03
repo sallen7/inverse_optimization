@@ -1,12 +1,8 @@
 #### File to Run the Experiment ####
 
-#LEAVING OFF: My code doesn't appear to be consistent with the data
-#It failed in like 9 iterations and now it is failing in 11.  We are
-#getting some kind of infeasible solution
-
-#ACTUALLY LEFT OFF: I'm checking my update rule function right now for if
-#everything is updating correctly (note that the KKTconditionsmodel is
-#indeed always with c set to 0 (since we arent updating those c values)))
+#LEFT OFF 4/30/2019: I think gurobi is confused by the model - should
+#pdb.set_trace into the construction of the model to see if it is being 
+#set up correctly/to try to ID the problem
 
 import sys
 sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
@@ -20,6 +16,7 @@ from pyomo.opt import SolverFactory
 from pyomo.opt import SolverStatus, TerminationCondition
 import matplotlib.pyplot as plt #http://www.scipy-lectures.org/intro/matplotlib/matplotlib.html#simple-plot
 import pickle
+import math
 
 from online_IO_files.online_IO_source.online_IO import Online_IO #importing the GIO class for testing
 from experiment_dong_consumer_behavior_gen_data import num_samples,c_dict 
@@ -132,7 +129,7 @@ print(time_1)
     #b. Overall, should put a pdb.set_trace() and just make sure everything
     #is clearing the way I'm expecting it to clear
 
-##### Step 4: Graph the Loss #####
+##### Step 4a: Graph the Loss #####
 print("This is our loss vector:")
 print(online_cb.losses_dong)   #the loss dots are all over for Dong as well  
 
@@ -163,11 +160,33 @@ for i in range(1,num_samples+1):
 #pdb.set_trace()
 error_in_c_graph = plt.plot(np.arange(1,num_samples+1),c_error)
 plt.xlabel('Iterations',fontsize=30)
-plt.ylabel('2-norm(Theta_t - True_Theta)',fontsize=30)
-plt.title('Diff Between Theta_t and True Theta',fontsize=30)
+plt.ylabel('2-norm(c_t - c_true)',fontsize=30)
+plt.title('Diff Between c_t and c_true',fontsize=30)
 plt.show()
 
+##### Step 4c: Average Regret against the Bound #####
+online_loss_np = np.array(online_cb.losses_dong)
+batch_loss_np = np.array(online_cb.opt_batch_sol)
 
+## Cumsum Stuff ##
+cumsum_online_loss = np.cumsum(online_loss_np)
+cumsum_batch_loss = np.cumsum(batch_loss_np)
+
+regret = cumsum_online_loss - cumsum_batch_loss
+avg_regret = np.divide(regret,np.arange(1,num_samples+1))
+
+bound_func = lambda x: 1/(math.sqrt(x)) #following the lead of BMPS 2018
+
+pdb.set_trace()
+## Graphing ##
+avg_regret_plot = plt.semilogy(np.arange(1,num_samples+1),avg_regret,label='average regret')
+avg_regret_plot = plt.semilogy(np.arange(1,num_samples+1),bound_func(np.arange(1,num_samples+1)))
+plt.xlabel('Iterations',fontsize=20)
+plt.ylabel('Average Regret (log scale)',fontsize=20)
+plt.title('Average Regret and Bound on Regret',fontsize=20)
+plt.show()
+####NEED TO COME BACK TO THIS AND SEE IF i NEED TO CHANGE ANYTHING ABOUT THE
+### GRAPHS - need to test if stuff works
         
 
 #NEED TO ALSO MAKE A GRAPH WITH r!

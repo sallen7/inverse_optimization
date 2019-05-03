@@ -7,7 +7,7 @@ from pyomo.opt import SolverFactory
 from pyomo.opt import SolverStatus, TerminationCondition
 import pyomo.mpec as pyompec #for the complementarity
 import math
-
+from itertools import combinations #need for the calculate_batch_sol method
 
 def compute_KKT_conditions(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
                            dimD=(0,0),non_negative=0,bigM=10000):
@@ -276,8 +276,9 @@ def loss_function(self,y,theta=0,if_solve=1):
 #        else:
 #            pdb.set_trace()
     
-    ##Putting Model in Attribute##
+    ##Putting Model in Attribute and Put Noisy Decision in Dictionary##
     self.loss_model_dong = loss_model.clone()
+    self.noisy_decision_dict[self.dong_iteration_num] = y
     
     return pyo.value(loss_model.obj_func)
 
@@ -331,10 +332,148 @@ def update_rule_optimization_model(self,y,theta,eta_t):
     
     return new_c_t
 
+def calculate_batch_sol(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
+                           dimD=(0,0)):
+    ###NEED TO SAVE ALL OF THE YS###
+    #So we will copy over the KKT model (like did in prev methods and 
+    #like we did with the block methods in BMPS file)
+    
+    #Then make a copy of the current batch model
+    
+    #Add new block for current iteration
+    
+    #delete and then reconstruct the objective function
+    
+    #Going to need to FORCE all of the c/theta variables to be equal
+    #Like non-anticipatory constraints (look at 725 code)
+    #Also going to have to reconstruct every time
+    
+    ### Need to have an if/else statement for the first iteration ###
+    #maybe not?
+    
+    ##### Step 0: Set up - Copying Over Models and Sets #####
+    ###IF WE END UP WANTING TO MAKE USEFUL FOR BARMANN, CAN HAVE IF THEN
+    ###FOR THE RIGHT MODEL TO BRING IN BASED UPON THE ALGORITHM THAT HAS BEEN
+    ###INITIATED
+    KKT_model = self.KKT_conditions_model.clone() 
+    KKT_model.c.unfix()
+    
+    (n,ph) = dimc #assume c is column vector
+    (m,ph) = dimA 
+    (p,ph) = dimD #some notation use from Dr. Gabriel's ENME741 notes
+    (n2,ph) = dimQ #n2 for second parameter definition
+    
+#    KKT_model.xindex = pyo.RangeSet(1,n)
+#    KKT_model.x = pyo.Var(KKT_model.xindex)
+#    KKT_model.uindex = pyo.RangeSet(1,m)
+#    KKT_model.u = pyo.Var(KKT_model.uindex,domain=pyo.NonNegativeReals) #just for u
+#    KKT_model.vindex = pyo.RangeSet(1,p)
+#    KKT_model.v = pyo.Var(KKT_model.vindex)
+#    KKT_model.z_non_neg = pyo.Var(KKT_model.xindex,\
+#                            domain=pyo.Binary) #same number of z vars as u vars
+#    KKT_model.z = pyo.Var(KKT_model.uindex,domain=pyo.Binary)
+    
+    name_of_block = "set_S_" + str(self.dong_iteration_num)
+    current_batch_model = self.batch_model.clone()
+    
+    ##### Step 1: Block Function #####
+    def batch_model_block_func(set_S):
+        #We don't have to do like a "block declaration" - done outside of the 
+        #function for us!
+        
+        ### Index Sets ###
+        set_S.xindex = pyo.RangeSet(1,n)
+        set_S.uindex = pyo.RangeSet(1,m)
+        set_S.vindex = pyo.RangeSet(1,p)
+        
+        ### Variables ###
+        set_S.x = pyo.Var(set_S.xindex)
+        set_S.u = pyo.Var(set_S.uindex,domain=pyo.NonNegativeReals)
+        set_S.v = pyo.Var(set_S.vindex)
+        set_S.z_non_neg = pyo.Var(set_S.xindex,\
+                            domain=pyo.Binary) #same number of z vars as u vars
+        set_S.z = pyo.Var(set_S.uindex,domain=pyo.Binary)
+        set_S.c = pyo.Var(set_S.xindex) #NEW CODE 4/30/2019: needed a c variable because 
+                                #the KKT_model has c variables
+        
+        
+        for param in KKT_model.component_objects(pyo.Param):
+            setattr(set_S,param.name,pyo.Param(param._index,initialize=param._data))
+        for expr in KKT_model.component_objects(pyo.Expression):
+            #pdb.set_trace()
+            setattr(set_S,expr.name,pyo.Expression(expr._index,expr=expr._data))
+            #NOTE 4/30/2019: I THINK THERE IS STILL SOMETHING WRONG WITH THE EXPRESSION
+        for constr in KKT_model.component_objects(pyo.Constraint):
+            #pdb.set_trace()
+            setattr(set_S,constr.name,pyo.Constraint(constr._index,rule=constr.rule))
+    
+    setattr(current_batch_model,name_of_block,pyo.Block(rule=batch_model_block_func))
+    
+    pdb.set_trace()
+    
+    ##### Step 2: Creating New Objective Function #####
+    def batch_obj_func(model):
+        #Need to create a sum 
+        running_sum = 0
+        for (i,y) in self.noisy_decision_dict.items(): #4/30/2019: AM I CALLING ALL ys??
+            #getattr(model,"set_S_" + str(i)).x[j]
+            running_sum = running_sum +\
+            sum((y[j-1,0] - getattr(model,"set_S_" + str(i)).x[j])**2 for j in range(1,n+1))
+        
+        return running_sum
+    
+    current_batch_model.batch_obj_func = pyo.Objective(rule=batch_obj_func)
+    
+    pdb.set_trace()
+    
+    ##### Step 3: Generating ``Non-anticipatory'' Constraints #####
+    if self.dong_iteration_num > 1: #only generate if have more than 1 block
+        
+        def equalizing_c_across_blocks(model,i,j,k):
+            return getattr(model,"set_S_"+str(i)).c[k] == getattr(model,"set_S_"+str(j)).c[k]
+        
+        #Thanks to: https://www.geeksforgeeks.org/permutation-and-combination-in-python/
+        #for demonstrating how to use the combinations function 
+        current_batch_model.equalizing_c_constraints = \
+        pyo.Constraint(list(combinations(range(1,self.dong_iteration_num),2)),\
+                       current_batch_model.set_S_1.xindex,rule=equalizing_c_across_blocks)
+    
+    pdb.set_trace() #NOTE 4/30/2019 - could the equalizing constraints be causing a problem?
+    
+    ##### Step 4: Solving the Model #####
+    solver = SolverFactory("gurobi") #right solver to use because of 
+                                    #nonlinear objective function and the 
+                                    #possible binary variables
+    
+    results = solver.solve(current_batch_model)
+    print("This is the termination condition (calculate_batch_sol):",results.solver.termination_condition)
+    
+    self.opt_batch_sol.append(pyo.value(current_batch_model.batch_obj_func)) #put objective func
+                                            #value in opt_batch_sol attribute list
+    
+    ##### Step 5: Clean Up #####     
+    ## Delete Components and Put Model in Attribute #####
+    if self.dong_iteration_num > 1:
+        current_batch_model.del_component(current_batch_model.equalizing_c_constraints)
+    
+    current_batch_model.del_component(current_batch_model.batch_obj_func)   
+    
+    self.batch_model = current_batch_model.clone()
+    
+    pdb.set_trace()
+    
+    
+    
+    
+        
+    
+    
+
+
 ### Listing the Functions at the End of the File ###
 ## Following the advice of http://www.qtrac.eu/pyclassmulti.html
 
-dong_chen_zeng_funcs = (compute_KKT_conditions,loss_function,update_rule_optimization_model)
+dong_chen_zeng_funcs = (compute_KKT_conditions,loss_function,update_rule_optimization_model,calculate_batch_sol)
 #this is actually a tuple list of the functions themselves - since we arent using func()
 #we are actually passing a function reference (as one of the articles that I was looking
 #at was saying)

@@ -11,9 +11,9 @@
 #BUT, saying that, do we want to give all of the
 #exact data (c,x0,etc)
 
-#WHERE LEFT OFF: Really need to do a workflow track tomorrow (of like
-#all the steps to take something from start to finish) and 
-#write up more documentation
+#NEW COMMENT: 5/3/2019 Many of the Chan tests are not extremely useful
+#or at least could be combined more (and definitely don't need a million
+#fixtures defined to implement them)
 
 import sys
 sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
@@ -67,7 +67,7 @@ def test_chan_KKT_conditions_generate_1(chan_compute_KKT_1):
     #We caught an issue/oversight in our code due to this test
     #In the compute_KKT_conditions method, we now set the fixed
     #c values to the c data that comes into the code
-    model = chan_compute_KKT_1.KKT_conditions_model
+    model = chan_compute_KKT_1.KKT_conditions_model.clone()
     #pdb.set_trace()
     
     solver = SolverFactory("gurobi") 
@@ -82,7 +82,7 @@ def test_chan_KKT_conditions_generate_1(chan_compute_KKT_1):
     assert model.x.extract_values() == {1:3.0,2:4.0}
 
 def test_chan_KKT_conditions_generate_2(chan_compute_KKT_2):
-    model = chan_compute_KKT_2.KKT_conditions_model
+    model = chan_compute_KKT_2.KKT_conditions_model.clone()
     solver = SolverFactory("gurobi") 
         
     solver.solve(model)
@@ -117,17 +117,31 @@ def test_that_returns_fail(chan_init_instance):
     
     ##Step 2: next_iteration() method
     assert chan_init_instance.next_iteration() == 0 #make sure returns a 0
+    
     #Ensure the iteration number hasn't increased, losses_dong list
     #is still an empty list, and c_t_dong is still None
-    assert chan_init_instance.dong_iteration_num == 1
+    assert chan_init_instance.dong_iteration_num == 0
     assert not chan_init_instance.losses_dong #assert that it is still 
                                             #empty (that no losses have been 
                                             #appended to it)
                                             #https://stackoverflow.com/questions/53513/how-do-i-check-if-a-list-is-empty
     assert chan_init_instance.c_t_dong is None
     
-def test_NW_quadratic_KKT(quadratic_non_neg_NW):
-    model = quadratic_non_neg_NW.KKT_conditions_model
+def test_NW_quadratic_KKT(quadratic_NW):
+    quadratic_NW.initialize_IO_method("Dong_implicit_update")
+    
+    model = quadratic_NW.KKT_conditions_model.clone()
+    
+    #####################################################
+    # NEW CODE 4/29/2019: I'm putting the objective function in the
+    # test because want to be able to use quadratic_NW for multiple
+    # tests
+    ### Adding Objective Function: As long as Satisfy KKT N&S then
+    ## Can use Constant Objective Function 
+    model.obj_func = pyo.Objective(expr=5)    
+    
+    #################################################
+    
     solver = SolverFactory("gurobi") 
         
     solver.solve(model)
@@ -136,12 +150,18 @@ def test_NW_quadratic_KKT(quadratic_non_neg_NW):
     
     assert model.v.extract_values() == {1:-3.0,2:2.0} #{1:3.0,2:-2.0}
     #had to negate the given lambda because N&W Lagrangian assumes a 
-    #slightly different form where the lambdas are subtracted
+    #slightly different form where the lambdas are subtracted    
     
     
-def test_Gabriel_quadratic_portfolio_KKT(quadratic_portfolio_Gabriel_KKT):
-    model = quadratic_portfolio_Gabriel_KKT.KKT_conditions_model 
+def test_Gabriel_quadratic_portfolio_KKT(quadratic_portfolio_Gabriel):
+    quadratic_portfolio_Gabriel.initialize_IO_method("Dong_implicit_update") #initialize the method
+      
+    model = quadratic_portfolio_Gabriel.KKT_conditions_model.clone() 
     
+    ## Add constant objective function ##
+    model.obj_func = pyo.Objective(expr=5)
+    
+    #Solve the model
     solver = SolverFactory("gurobi") 
     solver.solve(model)
     
@@ -152,8 +172,31 @@ def test_Gabriel_quadratic_portfolio_KKT(quadratic_portfolio_Gabriel_KKT):
     
     assert solution == {1:0.20,2:0.44,3:0.36}
     
-def test_Gabriel_quadratic_change_data(quadratic_portfolio_Gabriel_change_data):
-    model = quadratic_portfolio_Gabriel_change_data.KKT_conditions_model 
+def test_Gabriel_quadratic_change_data(quadratic_portfolio_Gabriel):
+    quadratic_portfolio_Gabriel.initialize_IO_method("Dong_implicit_update")
+    
+    ### Modify RHS b ###
+    #For this test, all we are going to do is modify the 
+    #RHS via receive_data and then we are gonna solve the
+    #resulting KKT model to make sure that the RHS got changed correctly
+    #Can do this with the other models too!
+
+    quadratic_portfolio_Gabriel.receive_data(p_t={'b':{1:-24}},x_t=np.array([[0],[1],[1]])) 
+                                                            #NEW CODE: 4/29/2019 - changed
+                                                            #[[0],[1]] to a numpy array
+                                                            #ALSO needed to change to 3 part vector
+                                                            #WASNT BEING USED IN THE TEST - THAT IS WHY
+                                                            #DIDNT GET CAUGHT BEFORE - BUT AN ASSERT
+                                                            #STATEMENT WITHIN THE CODE CAUGHT IT
+                                                            
+                                                            #b wasnt part of the stationary_expression, hence
+                                                            #why it ended up working in the test case
+    
+    
+    ###########################################
+    model = quadratic_portfolio_Gabriel.KKT_conditions_model.clone()
+    
+    model.obj_func = pyo.Objective(expr=5)
     
     solver = SolverFactory("gurobi") 
     solver.solve(model)

@@ -71,20 +71,25 @@ class Online_IO():
         
         ##### Dong_implicit_update Attributes #####
         self.KKT_conditions_model = None
+        self.batch_model = pyo.ConcreteModel() #initiating the batch model 
         self.loss_model_dong = None
         self.noisy_decision_dong = None #holds the next noisy decision 
                                         #(if passed in, assume numpy column vector)
-        self.dong_iteration_num = 1
+        self.noisy_decision_dict = {}
+        
+        self.dong_iteration_num = 0
         self.c_t_dong = None
         self.c_t_dict_dong = {}
         self.update_model_dong = None
         self.losses_dong = [] #MIGHT CHANGE to numpy data at some point
+        self.opt_batch_sol = []
         
         ###### BMPS_online_GD Attributes #####
         self.var_bounds = var_bounds #if there are variable bounds, 
                                     #needs to be passed in as a tuple
                                     #FOR NOW, only enabling for BMPS
         self.BMPS_subproblem = None
+        self.project_to_F_model = None
         self.D = None
         self.G_max = 0 #initializing max of diam(X_pt)
         self.c_t_BMPS = None
@@ -307,6 +312,12 @@ class Online_IO():
                                                 theta=self.c_t_dong,eta_t=eta)
             
             self.c_t_dict_dong[self.dong_iteration_num] = self.c_t_dong
+            
+            #### Step 3: Calculate Batch Solution ####
+            self.calculate_batch_sol(dimQ=self.model_data_dimen['Q'],dimc=self.model_data_dimen['c'],\
+                                     dimA=self.model_data_dimen['A'],\
+                                     dimD=self.model_data_dimen['D'])
+            
             
         elif self.alg_specification == "BMPS_online_GD":
             if part_for_BMPS == 1: #part 1 for algorithm

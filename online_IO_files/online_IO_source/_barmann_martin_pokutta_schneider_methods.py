@@ -93,7 +93,7 @@ def compute_standardized_model(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
         
     if p > 0:
         def equality_constraints_rule(model,i):
-            return sum(model.D[i,j]*model.x[j] for j in range(1,n+1)) <= model.f[i]
+            return sum(model.D[i,j]*model.x[j] for j in range(1,n+1)) == model.f[i]
         
         standard_model.equality_constraints = pyo.Constraint(standard_model.vindex,\
                                                     rule=equality_constraints_rule)
@@ -264,7 +264,7 @@ def compute_diam_X_pt(self,dimc=(0,0)):
     solver = SolverFactory("gurobi") #going to go with most high power solver for now
     
     results = solver.solve(set_X_pt_squared)
-    print("This is the termination condition (update rule):",results.solver.termination_condition)
+    print("This is the termination condition (compute_diam_F):",results.solver.termination_condition)
     
     print("This is the objective function value (multiplied by -1 and then square rooted):",\
           math.sqrt(-1*pyo.value(set_X_pt_squared.obj_func)))
@@ -307,13 +307,15 @@ def project_to_F(self,dimc=(0,0),y_t=None):
     solver = SolverFactory("gurobi") #going to go with most high power solver for now
     
     results = solver.solve(region_F)
-    print("This is the termination condition (update rule):",results.solver.termination_condition)
+    print("This is the termination condition (project_to_F):",results.solver.termination_condition)
     
     ### Extracting Solution ###
     ct_vals = region_F.c.extract_values() #obtain a dictionary
     
     self.c_t_BMPS = ct_vals ##will need to update subproblem with this 
                             #(hence need to keep in dictionary format)
+                            
+    self.project_to_F_model = region_F.clone()
     
     
 def solve_subproblem(self):
@@ -327,7 +329,7 @@ def solve_subproblem(self):
     solver = SolverFactory("gurobi") #going to go with most high power solver for now
     
     results = solver.solve(subproblem)
-    print("This is the termination condition (update rule):",results.solver.termination_condition)
+    print("This is the termination condition (solve_subproblem):",results.solver.termination_condition)
     
     ### Extracting Solution ###
     #Thanks to: https://stackoverflow.com/questions/15579649/python-dict-to-numpy-structured-array
