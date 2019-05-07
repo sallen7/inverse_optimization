@@ -42,6 +42,8 @@ utilities = np.random.randint(1,1001,(50,))
 utilities = utilities*(1/np.linalg.norm(utilities,ord=1))
 ##Need to transform the np.array into a dictionary###
 #Thanks to: https://stackoverflow.com/questions/31575675/how-to-convert-numpy-array-to-python-dictionary-with-sequential-keys
+#Stuff on Enumerate: https://www.geeksforgeeks.org/enumerate-in-python/
+#https://www.afternerd.com/blog/python-enumerate/#enumerate-tuple
 utilities_dict = dict(enumerate(utilities,1))
 
 

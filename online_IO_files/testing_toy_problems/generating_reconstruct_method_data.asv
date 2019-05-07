@@ -108,37 +108,12 @@ end
 
 %%
 %Creating some stuff for gradient_step
-OGD = @(eta,c_t,x_t,xbar_t) (c_t - eta*(x_t-xbar_t));
+OGD = @(eta,c_t,x_t,xbar_t) 
 
-lb = -50;
-ub = 50;
 
-for i = 1:2
-    disp("*************************")
-    
-    eta = round(1/(sqrt(abs(randi([lb ub])))),4);
-    disp("eta")
-    disp(eta)
 
-    c_t = [randi([lb ub]); randi([lb ub])];
-    disp("c_t")
-    disp(c_t)
 
-    x_t = [randi([lb ub]); randi([lb ub])];
-    disp("x_t")
-    disp(x_t)
 
-    xbar_t = [randi([lb ub]); randi([lb ub])];
-    disp("xbar_t")
-    disp(xbar_t)
-
-    value = OGD(eta,c_t,x_t,xbar_t);
-    disp("value")
-    disp(value)
-    
-    disp("*************************")
-
-end
 
 
 

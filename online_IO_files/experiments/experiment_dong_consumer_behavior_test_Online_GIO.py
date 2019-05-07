@@ -41,13 +41,15 @@ y_t_samples = pickle.load(pickle_in)
 #a. Sets and Vars
 cb_model = pyo.ConcreteModel()
 cb_model.varindex = pyo.RangeSet(1,10)
-cb_model.x = pyo.Var(cb_model.varindex,domain=pyo.NonNegativeReals)
+cb_model.x = pyo.Var(cb_model.varindex) #EDIT 5/4/2019,domain=pyo.NonNegativeReals)
 cb_model.numvars = pyo.Param(initialize=10)
 cb_model.eqindex = pyo.RangeSet(1,1)
 
 #b. Parameters
 cb_model.p_t = pyo.Param(cb_model.eqindex,\
-                        cb_model.varindex,initialize=0,mutable=True) 
+                        cb_model.varindex,initialize=0) #EDIT 5/4/2019 #,mutable=True) - YOU DONT need to specify
+                                                        #that p_t is mutable - we CREATE new forms of these models
+                                                        #within the class anyway
                                                     #Zero should work because should be 
                                                     #updated BEFORE any solution stuff happens
                                                     #initializing with

@@ -1,0 +1,20 @@
+
+Gurobi 8.1.0 (win64, Python) logging started 05/05/19 14:45:16
+
+Academic license - for non-commercial use only
+Read LP format model from file C:\Users\STEPHA~1\AppData\Local\Temp\tmpbtxeb6j_.pyomo.lp
+Reading time = 0.00 seconds
+x6: 1 rows, 6 columns, 1 nonzeros
+Optimize a model with 1 rows, 6 columns and 1 nonzeros
+Model has 5 quadratic objective terms
+Model has 1 quadratic constraint
+Coefficient statistics:
+  Matrix range     [1e+00, 1e+00]
+  QMatrix range    [5e-01, 5e+00]
+  QLMatrix range   [2e+00, 1e+01]
+  Objective range  [0e+00, 0e+00]
+  QObjective range [2e+00, 2e+00]
+  Bounds range     [0e+00, 0e+00]
+  RHS range        [1e+00, 1e+00]
+  QRHS range       [5e+00, 5e+00]
+Presolve removed 1 rows and 1 columns

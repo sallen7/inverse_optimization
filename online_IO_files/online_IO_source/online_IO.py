@@ -5,6 +5,9 @@
 #Big thanks to: http://www.qtrac.eu/pyclassmulti.html for explaining
 #how to break up methods to multiple files
 
+#Helpful for telling me about stale variables:
+#https://stackoverflow.com/questions/55711079/what-does-it-mean-when-a-variable-returns-stale-true
+
 import sys
 sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
 
@@ -30,7 +33,7 @@ class Online_IO():
     
     def __init__(self,initial_model=None,Qname='Q',cname='c',Aname='A',bname='b',Dname='D',fname='f',\
                  dimQ=(0,0),dimc=(0,0),dimA=(0,0),dimD=(0,0),binary_mutable=[0,0,0,0,0,0],non_negative=0,\
-                 feasible_set_C=pyo.ConcreteModel(),var_bounds=None):
+                 feasible_set_C=None): 
         
         #We are assuming that binary_mutable is in the order of Q,c,A,b,D,f
         
@@ -65,7 +68,8 @@ class Online_IO():
         self.if_mutable = mutability 
         self.model_data_names_mutable = mutable_params #NEW: (paramname,username) subset of model_data_names
         
-        self.feasible_set_C = feasible_set_C.clone()
+        self.feasible_set_C = feasible_set_C #NEW CODE 5/5/2019 feasible_set_C.clone()
+                            #NEED TO CHECK THAT NOT USING .CLONE ISN'T GONNA BE AN ISSUE!
         
         #pdb.set_trace()
         
@@ -85,7 +89,7 @@ class Online_IO():
         self.opt_batch_sol = []
         
         ###### BMPS_online_GD Attributes #####
-        self.var_bounds = var_bounds #if there are variable bounds, 
+        #self.var_bounds = var_bounds #if there are variable bounds, 
                                     #needs to be passed in as a tuple
                                     #FOR NOW, only enabling for BMPS
         self.BMPS_subproblem = None
@@ -126,7 +130,10 @@ class Online_IO():
                 dimD=self.model_data_dimen['D'],non_negative=self.non_negative) 
         
         elif alg_specification == "BMPS_online_GD":
-            ### Step 0: Set Algorithm Name ###
+            ### Step 0: Check that have a feasible_set_C Param and Set Algorithm Name ###
+            ##NEW CODE 5/5/2019
+            assert self.feasible_set_C is not None, "Error: you need to specify a feasible_set_C for BMPS_online_GD"
+            
             self.alg_specification = alg_specification
             
             #pdb.set_trace()

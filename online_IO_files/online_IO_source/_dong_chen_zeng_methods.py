@@ -301,8 +301,29 @@ def update_rule_optimization_model(self,y,theta,eta_t):
     
     update_rule_model.c.unfix() #unfix the c variables (since coming from the KKT_conditions_model
                                 #we know the initial value is set at 0)
+                                
+    ### Step 2: Set Bounds on c variables (if feasible_set_C tuple has been passed) ###
+    ##NEW CODE 5/5/2019
+    #Thanks to https://www.geeksforgeeks.org/type-isinstance-python/ for illustrating
+    #the use of the isinstance function
+    #Thanks to https://www.tutorialspoint.com/python/tuple_len.htm for helping with the length
+    #of the tuple
+    if self.feasible_set_C is not None: #if something got passed to it
+        assert isinstance(self.feasible_set_C,tuple), "Error: If you specify feasible_set_C for the Dong_implicit_update method, must be a tuple"
+        assert len(self.feasible_set_C) == 2, "Error: The tuple for feasible_set_C must be of length 2"
+        
+        (lb,ub) = self.feasible_set_C
+        
+        def bounds_c_lower(model,i):
+            return lb <= model.c[i]
+        
+        def bounds_c_upper(model,i):
+            return model.c[i] <= ub     
+        
+        update_rule_model.c_bound_lower = pyo.Constraint(update_rule_model.xindex,rule=bounds_c_lower)
+        update_rule_model.c_bound_upper = pyo.Constraint(update_rule_model.xindex,rule=bounds_c_upper)
     
-    ### Step 2: Create the Objective Function ###
+    ### Step 3: Create the Objective Function ###
     #Decided that I want these to be stand alone methods, so I will have
     #the mechanics methods pass into them
     update_rule_model.c_t = pyo.Param(update_rule_model.xindex,\
@@ -317,7 +338,7 @@ def update_rule_optimization_model(self,y,theta,eta_t):
     
     #pdb.set_trace()
     
-    ### Step 3: Solve the Model and Obtain the Next Guess at Theta ###
+    ### Step 4: Solve the Model and Obtain the Next Guess at Theta ###
     solver = SolverFactory("gurobi") #right solver to use because of 
                                     #nonlinear objective function and the 
                                     #possible binary variables
@@ -472,6 +493,10 @@ def calculate_batch_sol(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
 
 ### Listing the Functions at the End of the File ###
 ## Following the advice of http://www.qtrac.eu/pyclassmulti.html
+    
+#From: https://realpython.com/primer-on-python-decorators/
+#"The say_hello function is named without parentheses. This means that only a 
+#reference to the function is passed."
 
 dong_chen_zeng_funcs = (compute_KKT_conditions,loss_function,update_rule_optimization_model,calculate_batch_sol)
 #this is actually a tuple list of the functions themselves - since we arent using func()

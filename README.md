@@ -28,6 +28,24 @@ A more preliminary version of this last paper can be cited as follows:
 
 	Bärmann, Andreas, Sebastian Pokutta, and Oskar Schneider. "Emulating the expert: inverse optimization through online learning." *Proceedings of the 34th International Conference on Machine Learning-Volume 70.* JMLR. org, 2017.
 
+## Pytest Results ##
+
+These are the results of our unittests using the pytest unittesting package:
+
+>============================= test session starts ==============================
+
+>platform win32 -- Python 3.7.3, pytest-4.3.1, py-1.8.0, pluggy-0.9.0
+>rootdir: C:\Users\StephanieAllen\Documents\1_AMSC663\Repository_for_Code\online_IO_files\testing_toy_problems, inifile:
+
+>collected 14 items
+
+>test\_BMPS\_code.py ..                                                      [ 14%]
+
+>test\_DCZ\_code.py ........                                                 [ 71%]
+
+>test\_mechanics\_methods.py ....                                            [100%]
+
+>========================== 14 passed in 3.75 seconds ===========================
 
 ## Specifications for Set-up of Code ##
 

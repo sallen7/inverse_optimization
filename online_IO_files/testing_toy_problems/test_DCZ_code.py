@@ -101,7 +101,7 @@ def test_receive_data(chan_receive_data):
     assert np.all(chan_receive_data.noisy_decision_dong == np.array([[2.5],[3]]))     
 
 
-def test_that_returns_fail(chan_init_instance):    
+def test_that_returns_fail(chan_lee_terekhov_linear_inequalities):    
     ##This test will ensure that the receive_data
     ##and next_iteration methods will not
     ##execute and will return error when we attempt
@@ -111,21 +111,21 @@ def test_that_returns_fail(chan_init_instance):
     #CAN I ASSERT THAT SOMETHING PRINTS??
     
     ##Step 1: receive_data method
-    assert chan_init_instance.receive_data(x_t=5) == 0 #make sure returns a 0
+    assert chan_lee_terekhov_linear_inequalities.receive_data(x_t=5) == 0 #make sure returns a 0
     #Ensure that noisy decision was not updated
-    assert chan_init_instance.noisy_decision_dong is None
+    assert chan_lee_terekhov_linear_inequalities.noisy_decision_dong is None
     
     ##Step 2: next_iteration() method
-    assert chan_init_instance.next_iteration() == 0 #make sure returns a 0
+    assert chan_lee_terekhov_linear_inequalities.next_iteration() == 0 #make sure returns a 0
     
     #Ensure the iteration number hasn't increased, losses_dong list
     #is still an empty list, and c_t_dong is still None
-    assert chan_init_instance.dong_iteration_num == 0
-    assert not chan_init_instance.losses_dong #assert that it is still 
+    assert chan_lee_terekhov_linear_inequalities.dong_iteration_num == 0
+    assert not chan_lee_terekhov_linear_inequalities.losses_dong #assert that it is still 
                                             #empty (that no losses have been 
                                             #appended to it)
                                             #https://stackoverflow.com/questions/53513/how-do-i-check-if-a-list-is-empty
-    assert chan_init_instance.c_t_dong is None
+    assert chan_lee_terekhov_linear_inequalities.c_t_dong is None
     
 def test_NW_quadratic_KKT(quadratic_NW):
     quadratic_NW.initialize_IO_method("Dong_implicit_update")

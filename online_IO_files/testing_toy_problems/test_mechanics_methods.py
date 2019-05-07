@@ -9,6 +9,8 @@
 #I will say that the other methods just call other methods within the class
 #to carry out the execution of stuff (basically, will check...)
 
+#CLT = Chan, Lee, and Terekhov
+
 import sys
 sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
 
@@ -169,25 +171,214 @@ def test_receive_data_quadratic_NW_BMPS(quadratic_NW):
 
 
 
-def test_receive_data_CLT_DCZ():
+def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
+    ### Test Receiving Data ### 
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
     
-    assert 3 == 3
+    ### Passing Data: Test 1 ###
+    A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.9, (4,2):1}
+    #2,5],[2,-3],[2,1],[-2,-1
+    b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
+    
+    chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
+                                    #the parameters accordingly
+    
+    model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
+    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    solution = model.x.extract_values()
+
+    for (key,value) in solution.items():
+        solution[key] = round(value,4)
+        
+    assert solution == {1:3.1169,2:4.0779}
+    
+    ### Passing Data: Test 2 ###
+    # 3.2432     4.1622
+    A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.8, (4,2):1}
+    #2,5],[2,-3],[2,1],[-2,-1
+    b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
+    
+    chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
+                                    #the parameters accordingly
+    
+    model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
+    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    solution = model.x.extract_values()
+
+    for (key,value) in solution.items():
+        solution[key] = round(value,4)
+        
+    assert solution == {1:3.2432,2:4.1622}
+    
+    
+
+def test_receive_data_CLT_DCZ_non_negative(chan_lee_terekhov_linear_inequalities):
+    ### Changing the Non-negative Flag to 1 ###
+    chan_lee_terekhov_linear_inequalities.non_negative = 1    
+    
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
+    
+    ### Passing Data: Test 1 ###
+    A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.9, (4,2):1}
+    #2,5],[2,-3],[2,1],[-2,-1
+    b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
+    
+    chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
+                                    #the parameters accordingly
+    
+    model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
+    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    solution = model.x.extract_values()
+
+    for (key,value) in solution.items():
+        solution[key] = round(value,4)
+        
+    assert solution == {1:3.1169,2:4.0779}
+    
+    ### Passing Data: Test 2 ###
+    # 3.2432     4.1622
+    A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.8, (4,2):1}
+    #2,5],[2,-3],[2,1],[-2,-1
+    b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
+    
+    chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
+                                    #the parameters accordingly
+    
+    model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
+    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    solution = model.x.extract_values()
+
+    for (key,value) in solution.items():
+        solution[key] = round(value,4)
+        
+    assert solution == {1:3.2432,2:4.1622}
+    
 
 
-def test_receive_data_CLT_BMPS():
-    #Can directly pass in different c values into c_t_BMPS to check that 
+def test_receive_data_CLT_BMPS(chan_lee_terekhov_linear_inequalities):    
+    ## Putting values in parameters when need to ##
+    chan_lee_terekhov_linear_inequalities.feasible_set_C = pyo.ConcreteModel()
+    chan_lee_terekhov_linear_inequalities.c_t_BMPS = {1:(-1),2:(-1)}
+    
+    ## Initializing the Method ##
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0})
+    
+    ########################################################
+    ### Passing Data: Test 1 ###
+    A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.9, (4,2):1}
+    #2,5],[2,-3],[2,1],[-2,-1
+    b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
+    
+    chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
+                                    #the parameters accordingly
+    
+    model = chan_lee_terekhov_linear_inequalities.BMPS_subproblem.clone()
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    solution = model.x.extract_values()
+
+    for (key,value) in solution.items():
+        solution[key] = round(value,4)
+        
+    assert solution == {1:3.1169,2:4.0779}
+    
+    ### Passing Data: Test 2 ###
+    # 3.2432     4.1622
+    A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.8, (4,2):1}
+    #2,5],[2,-3],[2,1],[-2,-1
+    b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
+    
+    chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
+                                    #the parameters accordingly
+    
+    model = chan_lee_terekhov_linear_inequalities.BMPS_subproblem.clone()
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    solution = model.x.extract_values()
+
+    for (key,value) in solution.items():
+        solution[key] = round(value,4)
+        
+    assert solution == {1:3.2432,2:4.1622}
+    
+    
+    
+def test_receive_data_diff_c_CLT_BMPS(chan_lee_terekhov_linear_inequalities):
+     #Can directly pass in different c values into c_t_BMPS to check that 
     #the c update step is working - can pass in the EXACT SAME
     #data for p_t and, before this, you could have changed the c_t_BMPS (look at style of this 
     #constraint again) 
     
-    #Need to do CLT with and without x >= 0 bc we need to check
-    #the regeneration of expressions
+    chan_lee_terekhov_linear_inequalities.feasible_set_C = pyo.ConcreteModel()
+    chan_lee_terekhov_linear_inequalities.c_t_BMPS = {1:(-1),2:(-1)}
     
-    #Want to re-read the thread about reconstruct as a double check
+    ## Initializing the Method ##
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0})
     
+    ### Test 1: c = (-1,-1) ###
+    #We will NOT be changing the feasible region, only will be changing the 
+    #c data between the following two tests
+    #We do still need to pass data in because we IDed A and b as being mutable (will just be the same data)
     
-    assert 3 == 3
+    A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):2, (4,2):1}
+    #2,5],[2,-3],[2,1],[-2,-1
+    b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
+    
+    chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1,'bvec':b_1})
+    
+    model = chan_lee_terekhov_linear_inequalities.BMPS_subproblem.clone()
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    solution = model.x.extract_values()
 
+    for (key,value) in solution.items():
+        solution[key] = round(value,1)
+        
+    assert solution == {1:3.0,2:4.0}
+    
+    
+    ### Test 2: c = (3/5,-2/5) ###
+    chan_lee_terekhov_linear_inequalities.c_t_BMPS = {1:(3/5),2:(-2/5)} #change the c
+    
+    A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):2, (4,2):1}
+    #2,5],[2,-3],[2,1],[-2,-1
+    b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
+    
+    chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1,'bvec':b_1})
+    
+    model = chan_lee_terekhov_linear_inequalities.BMPS_subproblem.clone()
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    solution = model.x.extract_values()
+
+    for (key,value) in solution.items():
+        solution[key] = round(value,2)
+    
+    assert solution == {1:0.75,2:2.50}
 
 
 
