@@ -26,7 +26,7 @@ num_samples = 500
 ## Setting up the Index Sets/Basics ##
 forward_model_BMPS = pyo.ConcreteModel()
 forward_model_BMPS.varindex = pyo.RangeSet(1,50)
-forward_model_BMPS.x = pyo.Var(forward_model_BMPS.varindex,bounds=(0,1))
+forward_model_BMPS.x = pyo.Var(forward_model_BMPS.varindex,bounds=(0,1)) #NEED THE BOUNDS HERE!!!
 forward_model_BMPS.numvars = pyo.Param(initialize=50)
 forward_model_BMPS.ineqindex = pyo.RangeSet(1,1)
 
@@ -109,7 +109,7 @@ for ns in range(1,num_samples+1):
     x_t_array = np.fromiter(x_t_dict.values(),dtype=float,count=len(x_t_dict))
     x_t_array_col = np.reshape(x_t_array,(len(x_t_dict),1))
     
-    print("another iteration complete")
+    #print("another iteration complete")
     #pdb.set_trace()
     
     #y_t_np_array = np.zeros((10,1))

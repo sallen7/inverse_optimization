@@ -87,7 +87,7 @@ def test_compute_standardized_model_quadratic_portfolio_Gabriel(quadratic_portfo
 
 ##### Step 2: Checking the project_to_F function #####
 
-def test_project_to_F(quadratic_NW):
+def test_project_to_F_obj_func(quadratic_NW):
     #### Part 1: Defining the set C/F #####
     #TECHNICALLY HAVE A BETTER DEF FOR THE SET IN THE test_mechanics_methods
     #script
@@ -153,6 +153,42 @@ def test_project_to_F(quadratic_NW):
     obj_value_F = round(pyo.value(model_F.obj_func(model_F)),1)
     
     assert obj_value_F == 101.0
+    
+def test_project_to_F_test_problem(chan_lee_terekhov_linear_inequalities):
+    ### Defining a Simple feasible_set_C upon which to project ###
+    feasible_c_region = pyo.ConcreteModel()
+
+    feasible_c_region.varindex = pyo.RangeSet(1,2)
+    feasible_c_region.c = pyo.Var(feasible_c_region.varindex)
+    
+    # Creating the box #
+    def greater_than_negative_one(model,i):
+        return -1 <= model.c[i]
+    
+    feasible_c_region.greater_than_negative_one_constraint = pyo.Constraint(feasible_c_region.varindex,\
+                                                        rule=greater_than_negative_one)
+    
+    def less_than_one(model,i):
+        return model.c[i] <= 1
+    
+    feasible_c_region.less_than_one_constraint = pyo.Constraint(feasible_c_region.varindex,\
+                                                        rule=less_than_one)
+    
+    ## Putting into the quadratic_NW feasible region ##
+    chan_lee_terekhov_linear_inequalities.feasible_set_C = feasible_c_region.clone()    
+    
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0})
+    ## Adjust y_t_BMPS ##
+    chan_lee_terekhov_linear_inequalities.y_t_BMPS = np.array([[0],[2]]) #should get an answer of (0,1)
+    
+    chan_lee_terekhov_linear_inequalities.next_iteration(part_for_BMPS=1)
+    
+    solution = chan_lee_terekhov_linear_inequalities.c_t_BMPS
+    
+    for (key,value) in solution.items():
+        solution[key] = round(value,1)
+    
+    assert solution == {1:0.0, 2:1.0}
     
     
 ##### Step 3: solve_subproblem  

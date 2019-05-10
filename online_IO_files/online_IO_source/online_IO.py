@@ -101,7 +101,7 @@ class Online_IO():
         self.x_t_BMPS = None
         self.y_t_BMPS = None
         self.BMPS_iteration_number = 0
-        self.if_use_diam = 1
+        self.if_use_diam = 0 #UPDATE 5/8/2019 - we change this to 0
     
     
     def initialize_IO_method(self,alg_specification,alg_specific_params=None):
@@ -341,14 +341,14 @@ class Online_IO():
                 
                 ### Step 4: Calculate Learning Rate ###
                 #Based upon the self.if_use_diam flag (set up in initialization)#
-                if self.if_use_diam == 1: #if we ARE using diameters
-                    if self.dong_iteration_num < 2: #so if on first iteration, need to compute D
-                        self.compute_diam_F(dimc=self.model_data_dimen['c'])
-                    
-                    self.compute_diam_X_pt(dimc=self.model_data_dimen['c']) #need to update each iteration
-                    
-                    eta_calculated = (1/math.sqrt(self.BMPS_iteration_number))*(self.D/self.G_max) 
-                elif self.if_use_diam == 0: #if we are NOT using diameters
+#                if self.if_use_diam == 1: #if we ARE using diameters
+#                    if self.dong_iteration_num < 2: #so if on first iteration, need to compute D
+#                        self.compute_diam_F(dimc=self.model_data_dimen['c'])
+#                    
+#                    self.compute_diam_X_pt(dimc=self.model_data_dimen['c']) #need to update each iteration
+#                    
+#                    eta_calculated = (1/math.sqrt(self.BMPS_iteration_number))*(self.D/self.G_max) 
+                if self.if_use_diam == 0: #if we are NOT using diameters
                     eta_calculated = (1/math.sqrt(self.BMPS_iteration_number))
                 
                 ### Step 5: Gradient Descent Step ###

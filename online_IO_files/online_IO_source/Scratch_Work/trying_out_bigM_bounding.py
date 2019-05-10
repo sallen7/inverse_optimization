@@ -60,11 +60,11 @@ def giant_constraint(model):
     A_Q_c_part = (-1/2)*sum(model.u[i]*A_Q_c[i-1,0] for i in range(1,6))
     A_Q_A_part = (-1/2)*sum(sum(A_Q_A[i-1,j-1]*model.u[i]*model.u[j] for j in range(1,6)) for i in range(1,6))
     
-    return 1 + (2.5)*(2.5) + constant + 2*A_Q_c_part + A_Q_A_part <= -2
+    return 1 + (2.5)*(2.5) + constant + 2*A_Q_c_part + A_Q_A_part <= 7.5 #<= 7.25
 
 test_model.constraint1 = pyo.Constraint(rule=giant_constraint)
 
-pdb.set_trace()
+#pdb.set_trace()
 
 ### Defining the objective function ###
 def obj_func(model):

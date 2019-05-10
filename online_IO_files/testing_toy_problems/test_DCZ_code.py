@@ -24,6 +24,7 @@ import numpy as np
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory 
 from pyomo.opt import SolverStatus, TerminationCondition
+import math
 
 from online_IO_files.online_IO_source.online_IO import Online_IO #importing the GIO class for testing
 
@@ -34,100 +35,63 @@ from online_IO_files.online_IO_source.online_IO import Online_IO #importing the 
 from pyomo.core.expr import current as EXPR
 
 
-#NEED A TEST METHOD THAT CHECKS THE INITIALIZATION
-#OF THE INSTANCE
-
-def test_initialize_IO_method(chan_init_IO_method):
-    #Step 1: Ensure .alg_specification attribute
-    #is updated correctly
-    assert chan_init_IO_method.alg_specification == "Dong_implicit_update"
-    #Step 2: Make sure the c_t_dong attribute
-    #is initialized correctly (with the data
-    #from the c parameter)
-    assert chan_init_IO_method.c_t_dong == {1:(2/5),2:(-3/5)}
-    #Step 3: Checking the KKT_conditions_model
-    #THINK THE BETTER WAY TO DO THIS IS TO JUST use
-    #test problems that directly test the compute_KKT_conditions method
+#### Step 1: Check the compute_KKT_conditions method ####
+## We will use the unit test toy problems to check that the 
+## compute_KKT_conditions method is doing its job
     
-    #KKT_model = chan_init_IO_method.KKT_conditions_model
-    #A = np.array([[2,5],[2,-3],[2,1],[-2,-1]])
-    #A_t = np.transpose(A)
-    #testing_expression = test_model.Abconstraints[1].body
-    #string_rep = EXPR.expression_to_string(testing_expression)
-    #comparison_thing = "-2*x[1] - 5*x[2]"
-    #for i in range(1,5):
-    #    KKT_expression = KKT_model.stationary_conditions[i].body
-        #NEED TO LOOP THROUGH THE CONSTRAINTS AND 
-        #CREATE string EXPRESSIONS THAT MATCH THE CONSTRAINTS
-        #might want to look at regular expressions
-        #Might want to also write up some of the KKT math
-        #while you are writing up this code
+def test_compute_KKT_conditions_CLT(chan_lee_terekhov_linear_inequalities):
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
     
-def test_chan_KKT_conditions_generate_1(chan_compute_KKT_1):
-    #We caught an issue/oversight in our code due to this test
-    #In the compute_KKT_conditions method, we now set the fixed
-    #c values to the c data that comes into the code
-    model = chan_compute_KKT_1.KKT_conditions_model.clone()
-    #pdb.set_trace()
+    model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
+    
+    #####################################################
+    # NEW CODE 4/29/2019: I'm putting the objective function in the
+    # test because want to be able to use quadratic_NW for multiple
+    # tests
+    ### Adding Objective Function: As long as Satisfy KKT N&S then
+    ## Can use Constant Objective Function 
+    model.obj_func = pyo.Objective(expr=5)    
+    
+    #################################################
     
     solver = SolverFactory("gurobi") 
-        
     solver.solve(model)
-    ##Step 1: Assert that Solved to optimality##
-    #CANT DO THIS BECAUSE CONSTANT OBJECTIVE!!
-    #Need to talk about why you can do this in the report
-    #assert results.solver.termination_condition == "optimal"
-
-    ##Step 2: Assert that we obtained the correct answer
+    
+    solution = model.x.extract_values()
+    
+    for (key,value) in solution.items():
+        solution[key] = round(value,1)
+    
+    assert model.x.extract_values() == {1:3.0,2:4.0}
+    
+def test_compute_KKT_conditions_CLT_non_zero(chan_lee_terekhov_linear_inequalities):
+    chan_lee_terekhov_linear_inequalities.non_negative = 1 #change to 1
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
+    
+    model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
+    
+    #####################################################
+    # NEW CODE 4/29/2019: I'm putting the objective function in the
+    # test because want to be able to use quadratic_NW for multiple
+    # tests
+    ### Adding Objective Function: As long as Satisfy KKT N&S then
+    ## Can use Constant Objective Function 
+    model.obj_func = pyo.Objective(expr=5)    
+    
+    #################################################
+    
+    solver = SolverFactory("gurobi") 
+    solver.solve(model)
+    
+    solution = model.x.extract_values()
+    
+    for (key,value) in solution.items():
+        solution[key] = round(value,1)
+    
     assert model.x.extract_values() == {1:3.0,2:4.0}
 
-def test_chan_KKT_conditions_generate_2(chan_compute_KKT_2):
-    model = chan_compute_KKT_2.KKT_conditions_model.clone()
-    solver = SolverFactory("gurobi") 
-        
-    solver.solve(model)
-    ##Step 1: Assert that Solved to optimality##
-    #CANT DO THIS BECAUSE CONSTANT OBJECTIVE!!
-    #assert results.solver.termination_condition == "optimal"
 
-    ##Step 2: Assert that we obtained the correct answer
-    assert model.x.extract_values() == {1:0.75,2:2.50}     
-    
-    
-def test_receive_data(chan_receive_data):
-    ##POTENTIALLY ADD MORE STUFF!!
-    ##Step 2: Check that the ``noisy observation''
-    ##gets put into the correct attribute
-    assert np.all(chan_receive_data.noisy_decision_dong == np.array([[2.5],[3]]))     
-
-
-def test_that_returns_fail(chan_lee_terekhov_linear_inequalities):    
-    ##This test will ensure that the receive_data
-    ##and next_iteration methods will not
-    ##execute and will return error when we attempt
-    ##to run them before the initialize_IO_method
-    ##method
-    
-    #CAN I ASSERT THAT SOMETHING PRINTS??
-    
-    ##Step 1: receive_data method
-    assert chan_lee_terekhov_linear_inequalities.receive_data(x_t=5) == 0 #make sure returns a 0
-    #Ensure that noisy decision was not updated
-    assert chan_lee_terekhov_linear_inequalities.noisy_decision_dong is None
-    
-    ##Step 2: next_iteration() method
-    assert chan_lee_terekhov_linear_inequalities.next_iteration() == 0 #make sure returns a 0
-    
-    #Ensure the iteration number hasn't increased, losses_dong list
-    #is still an empty list, and c_t_dong is still None
-    assert chan_lee_terekhov_linear_inequalities.dong_iteration_num == 0
-    assert not chan_lee_terekhov_linear_inequalities.losses_dong #assert that it is still 
-                                            #empty (that no losses have been 
-                                            #appended to it)
-                                            #https://stackoverflow.com/questions/53513/how-do-i-check-if-a-list-is-empty
-    assert chan_lee_terekhov_linear_inequalities.c_t_dong is None
-    
-def test_NW_quadratic_KKT(quadratic_NW):
+def test_compute_KKT_conditions_quadratic_NW(quadratic_NW):
     quadratic_NW.initialize_IO_method("Dong_implicit_update")
     
     model = quadratic_NW.KKT_conditions_model.clone()
@@ -153,7 +117,7 @@ def test_NW_quadratic_KKT(quadratic_NW):
     #slightly different form where the lambdas are subtracted    
     
     
-def test_Gabriel_quadratic_portfolio_KKT(quadratic_portfolio_Gabriel):
+def test_compute_KKT_conditions_quadratic_portfolio_Gabriel(quadratic_portfolio_Gabriel):
     quadratic_portfolio_Gabriel.initialize_IO_method("Dong_implicit_update") #initialize the method
       
     model = quadratic_portfolio_Gabriel.KKT_conditions_model.clone() 
@@ -172,41 +136,163 @@ def test_Gabriel_quadratic_portfolio_KKT(quadratic_portfolio_Gabriel):
     
     assert solution == {1:0.20,2:0.44,3:0.36}
     
-def test_Gabriel_quadratic_change_data(quadratic_portfolio_Gabriel):
-    quadratic_portfolio_Gabriel.initialize_IO_method("Dong_implicit_update")
+#### Step 2: Examine loss_function ####
+# Mainly want to check the objective function, but also
+# have a small test problem 
     
-    ### Modify RHS b ###
-    #For this test, all we are going to do is modify the 
-    #RHS via receive_data and then we are gonna solve the
-    #resulting KKT model to make sure that the RHS got changed correctly
-    #Can do this with the other models too!
-
-    quadratic_portfolio_Gabriel.receive_data(p_t={'b':{1:-24}},x_t=np.array([[0],[1],[1]])) 
-                                                            #NEW CODE: 4/29/2019 - changed
-                                                            #[[0],[1]] to a numpy array
-                                                            #ALSO needed to change to 3 part vector
-                                                            #WASNT BEING USED IN THE TEST - THAT IS WHY
-                                                            #DIDNT GET CAUGHT BEFORE - BUT AN ASSERT
-                                                            #STATEMENT WITHIN THE CODE CAUGHT IT
-                                                            
-                                                            #b wasnt part of the stationary_expression, hence
-                                                            #why it ended up working in the test case
+def test_loss_function_CLT_test_problem(chan_lee_terekhov_linear_inequalities):
+    ## Part a: Create the KKT_model ##
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
     
+    ## Part b: Call loss_function ##
+    y_t = np.array([[2.5],[3]])
+    c_t = {1:2,2:-3}
+    chan_lee_terekhov_linear_inequalities.dong_iteration_num = 1
     
-    ###########################################
-    model = quadratic_portfolio_Gabriel.KKT_conditions_model.clone()
+    output = chan_lee_terekhov_linear_inequalities.loss_function(y=y_t,theta=c_t)
     
-    model.obj_func = pyo.Objective(expr=5)
-    
-    solver = SolverFactory("gurobi") 
-    solver.solve(model)
-    
-    ## Rounding the Solution ##
-    solution = model.x.extract_values()
+    ## Part c: Extract Solution ##
+    solution = chan_lee_terekhov_linear_inequalities.loss_model_dong.x.extract_values()
     for (key,value) in solution.items():
-        solution[key] = round(value,2)   
+        solution[key] = round(value,2)
     
-    assert solution == {1:0.07,2:0.47,3:0.47} #SHOULD I CHECK MORE THINGS?
+    assert solution == {1:2.19,2:3.46}
+    
+    ## Part d: Check the c variable got set correctly ##
+    assert chan_lee_terekhov_linear_inequalities.loss_model_dong.c.extract_values() == c_t
+    for i in range(1,3):
+        assert chan_lee_terekhov_linear_inequalities.loss_model_dong.c[i].fixed == True #make sure variables still
+                #fixed
+    
+    
+def test_loss_function_obj_func(chan_lee_terekhov_linear_inequalities):
+    ### NOW we want to just do a few checks of the objective function ###
+    
+    ## Part a: Create the KKT_model ##
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
+    
+    ## Part b: Call loss_function ##
+    y_t = np.array([[2.5],[3]])
+    c_t = {1:2,2:-3}
+    chan_lee_terekhov_linear_inequalities.dong_iteration_num = 1
+    
+    output = chan_lee_terekhov_linear_inequalities.loss_function(y=y_t,theta=c_t)
+    
+    ## Putting Model in Variable ##
+    model_loss = chan_lee_terekhov_linear_inequalities.loss_model_dong.clone()
+    
+    ## Now we will input different x values to ensure that we are obtaining
+    ## the objective function we desire
+    
+    ## Test 1 ##
+    
+    model_loss.x[1] = 32
+    model_loss.x[2] = 41
+    
+    #print("obj_func_rounded_4_places",round(pyo.value(model_loss.obj_func(model_loss)),4))
+    
+    obj_value_loss = round(pyo.value(model_loss.obj_func(model_loss)),2)
+    
+    assert obj_value_loss == 2314.25 #had to go out to 2 decimal places to get
+    #things to work out
+    
+    ## Test 2 ##
+    model_loss.x[1] = -38
+    model_loss.x[2] = 42
+    
+    obj_value_loss = round(pyo.value(model_loss.obj_func(model_loss)),2)
+    
+    assert obj_value_loss == 3161.25 #had to go out to 2 decimal places to get
+    #things to work out
+    
+    ## Test 3 ##
+    model_loss.x[1] = -22
+    model_loss.x[2] = 5
+    
+    obj_value_loss = round(pyo.value(model_loss.obj_func(model_loss)),2)
+    
+    assert obj_value_loss == 604.25
+    
+    #Might have to go out to the 2 decimals because of the 2.5 involved?
+    
+
+#### Step 3: Examine the update_rule_optimization_model ####
+    
+def test_update_rule_optimization_model_obj_func(chan_lee_terekhov_linear_inequalities):
+    chan_lee_terekhov_linear_inequalities.feasible_set_C = (-10,100) #putting bounds
+    
+    ## Part a: Create the KKT_model ##
+    chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
+    
+    ## Part b: Call the update_rule_optimization_model ##
+    #c and x are the variables
+    #need to pass in c_t, y, and eta_t
+    y_t = np.array([[2.5],[3]])
+    c_t = {1:2,2:-3}
+    eta_t = 5*(1/math.sqrt(30))
+    chan_lee_terekhov_linear_inequalities.dong_iteration_num = 1
+    
+    chan_lee_terekhov_linear_inequalities.update_rule_optimization_model(y=y_t,\
+                                                theta=c_t,eta_t=eta_t)
+    
+    model_update = chan_lee_terekhov_linear_inequalities.update_model_dong.clone()   
+    
+    #### Check that the c variables were unfixed ####
+    for i in range(1,3):
+        assert chan_lee_terekhov_linear_inequalities.update_model_dong.c[i].fixed == False #make sure variables still
+                #fixed
+    
+    #### Check that the lower and upper bound constraints were constructed ####
+    assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_lower._constructed == True
+    assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_upper._constructed == True
+    
+    for i in range(1,3):
+        assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_lower[i].lower == -10
+        assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_lower[i].upper == None
+        assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_upper[i].upper == 100
+        assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_upper[i].lower == None
+    
+    for i in range(1,3):
+        chan_lee_terekhov_linear_inequalities.update_model_dong.c[i] = -20
+        assert pyo.value(chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_lower[i].body) == -20
+        assert pyo.value(chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_upper[i].body) == -20
+        
+    
+    #### Check the Objective Function ####
+    ## Test 1 ##
+    model_update.x[1] = -23
+    model_update.x[2] = 25
+    
+    model_update.c[1] = 19
+    model_update.c[2] = 25
+    
+    obj_value_update = round(pyo.value(model_update.obj_func(model_update)),1)
+    
+    assert obj_value_update == 1571.9
+    
+    ## Test 2 ##
+    model_update.x[1] = -14
+    model_update.x[2] = 3
+    
+    model_update.c[1] = 8
+    model_update.c[2] = -25
+    
+    obj_value_update = round(pyo.value(model_update.obj_func(model_update)),2)
+    
+    assert obj_value_update == 508.53
+    
+    ## Test 3 ##
+    model_update.x[1] = -21
+    model_update.x[2] = 29
+    
+    model_update.c[1] = 28
+    model_update.c[2] = 28
+    
+    obj_value_update = round(pyo.value(model_update.obj_func(model_update)),1)
+    
+    assert obj_value_update == 1939.7
+    
+    
     
     
 ###FOR THE update rule test, we still need to see if we should 

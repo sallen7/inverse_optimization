@@ -219,18 +219,18 @@ def chan_lee_terekhov_linear_inequalities():
     test_model.Amat = pyo.Param(test_model.eqindex,test_model.varindex,rule=A_mat_func)
     test_model.bvec = pyo.Param(test_model.eqindex,initialize={1:-10,2:6,3:-4,4:10})
     
-    def constraint_rule(model,i):
-        return sum(model.Amat[i,j]*model.x[j] for j in range(1,3)) <= model.bvec[i]
+    #def constraint_rule(model,i):
+    #    return sum(model.Amat[i,j]*model.x[j] for j in range(1,3)) <= model.bvec[i]
     
-    test_model.Abconstraints = pyo.Constraint(test_model.eqindex,rule=constraint_rule)
+    #test_model.Abconstraints = pyo.Constraint(test_model.eqindex,rule=constraint_rule)
     
     ### Defining Objective Func ###
     test_model.cvec = pyo.Param(test_model.varindex,initialize={1:(-1),2:(-1)}) #initialize={1:(-2/5),2:(3/5)})
     
-    def obj_rule_func(model):
-        return model.cvec[1]*model.x[1]+model.cvec[2]*model.x[2]
+    #def obj_rule_func(model):
+    #    return model.cvec[1]*model.x[1]+model.cvec[2]*model.x[2]
     
-    test_model.obj_func = pyo.Objective(rule=obj_rule_func)
+    #test_model.obj_func = pyo.Objective(rule=obj_rule_func)
     
     
     ###############################################

@@ -112,7 +112,12 @@ time_0 = time.clock() #actual start of the algorithm
 online_cb = Online_IO(cb_model_BMPS,Qname='None',cname='uvec',Aname='p_t',\
           bname='RHS',Dname='None',fname='None',dimQ=(0,0),dimc=(50,1),\
           dimA=(1,50),dimD=(0,0),binary_mutable=[0,0,1,1,0,0],non_negative=1,\
-          feasible_set_C=feasible_c_region,var_bounds=(0,1))
+          feasible_set_C=feasible_c_region) #var_bounds=(0,1))
+#NOTE: TO RUN THIS EXPERIMENT NOW, I NEED TO THROW IN CONSTRAINTS INVOLVING keeping the x BELOW 1
+#would require me to generate a completely different p_t - MUCH bigger
+#might need to actually reintroduce var_bounds for this experiment to work easily...
+#GOOD THING: we do KNOW that it works - just need to get stuff cleaned up
+
 #Q,c,A,b,D,f
 
 online_cb.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0}) #remember we assume the first y_1
@@ -173,7 +178,7 @@ print(time_1)
 #Also need to make graphs!
 #ALSO NEED TO BUILD IN A WAY TO JUST DEFAULT TO 1/sqrt(t)
 
-print("This is D:",online_cb.D)
+#print("This is D:",online_cb.D)
 #############################################################
 
 
@@ -188,10 +193,16 @@ BMPS_sol_error = np.zeros((num_samples,))
 BMPS_total_error = np.zeros((num_samples,))
 
 for i in range(1,num_samples+1):
-    BMPS_obj_error[i-1] = np.dot(np.transpose(c_t_dict_vecs[i]),(xbar_dict_vecs[i]-x_t_samples[i]))
-    BMPS_sol_error[i-1] = np.dot(np.transpose(true_u_vec),(xbar_dict_vecs[i]-x_t_samples[i]))
+    BMPS_obj_error[i-1] = np.dot(np.transpose(c_t_dict_vecs[i]),(x_t_samples[i]-xbar_dict_vecs[i]))
+    BMPS_sol_error[i-1] = np.dot(np.transpose(true_u_vec),(x_t_samples[i]-xbar_dict_vecs[i]))
     BMPS_total_error[i-1] = BMPS_obj_error[i-1] - BMPS_sol_error[i-1]
  
+### Need to do the cumsum ###
+BMPS_obj_error = np.divide(np.cumsum(BMPS_obj_error),np.arange(1,num_samples+1))
+BMPS_sol_error = np.divide(np.cumsum(BMPS_sol_error),np.arange(1,num_samples+1))
+BMPS_total_error = np.divide(np.cumsum(BMPS_total_error),np.arange(1,num_samples+1))
+    
+#################################    
 plt.subplot(131)
 error_graph = plt.plot(np.arange(1,num_samples+1),BMPS_obj_error)
 plt.xlabel('Iterations',fontsize=20)
@@ -213,6 +224,9 @@ plt.title('BMPS Total Error',fontsize=20)
 
 plt.show()
 
+#bound_func = lambda x: 1/(math.sqrt(x)) #following the lead of BMPS 2018
+
+#average_bound = plt.
 
 
 
