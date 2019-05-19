@@ -45,10 +45,16 @@ def compute_standardized_model(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
     standard_model.uindex = pyo.RangeSet(1,m) #number of inequality constraints
     standard_model.vindex = pyo.RangeSet(1,p) #number of equality constraints
     
+    
+    ## If a user did pass in var_bounds for the BMPS Method ##
+    if self.var_bounds is not None: #if something got passed to it
+        assert isinstance(self.var_bounds,tuple), "Error: If you specify var_bounds for the BMPS_online_GD method, must be a tuple"
+        assert len(self.var_bounds) == 2, "Error: The tuple for var_bounds must be of length 2"
+    
     if non_negative == 0:
-        standard_model.x = pyo.Var(standard_model.xindex) #bounds=self.var_bounds)
+        standard_model.x = pyo.Var(standard_model.xindex,bounds=self.var_bounds)
     elif non_negative == 1: 
-        standard_model.x = pyo.Var(standard_model.xindex,domain=pyo.NonNegativeReals) #,bounds=self.var_bounds)
+        standard_model.x = pyo.Var(standard_model.xindex,domain=pyo.NonNegativeReals,bounds=self.var_bounds)
     else:
         print("Error: Can only have 0 or 1 for the non-negative parameter")
     

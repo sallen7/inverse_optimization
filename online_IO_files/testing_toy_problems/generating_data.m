@@ -1,35 +1,46 @@
+%%% generating_data.m %%%
+% 5/18/2019
+
+%This file was used to generate some data for some of the 
+%unit tests for the Online_IO class.
+
+%For more information, see the Validation or
+%Validation/Usage subsection of the Sections
+%1.2, 1.3, and 1.4 of the Chapter documentation
+%When we used it, we referred to it as "the 
+%MATLAB file" or "the MATLAB script" or some 
+%other variation.  Since it was used throughout
+%the unit tests, there isn't a central description
+%for it
+
+%%
 %%% Generating Data to Test the .reconstruct()
-%%% Method upon
+%%% method
+% Utilizing the form found for the Nocedal and Wright problem
+% See the Validation subsection in Section 1.2 for the formula
+% (where I'm explaining the N&W problem)
 
 %%% Nocedal and Wright Problem %%%
 lb = -20;
 ub = 20;
 
 Q = [6 2 1; 2 5 2; 1 2 4];
+c = [8; 3; 3];
+
+% Generate some A constraint data (A matrix is constr) %
 %constr = [1 0 1; 0 1 1]; %OG form
 constr = [randi([lb ub]) 0 randi([lb ub]); 0 randi([lb ub]) randi([lb ub])];
 disp('A_constr=')
 disp(constr)
 
-A = [Q; constr];
-%maybe get some random integers in those
-%1 slots
-
-c = [8; 3; 3];
+% Generating some b RHS data (b_2 = b) %
 %b_2 = [3; 0]; %OG form
 b_2 = [randi([lb ub]); 0];
 disp('b_constr=')
 disp(b_2)
 
-b = [c; b_2];
-%maybe change this up a bit too
-
-%pinv_sol = pinv(A)*b; %nope not doing what we were hoping
-
-%disp('sol=')
-%disp(x)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%Trying out the analytical form I found
+%%% Calculating the Analytical Solution %%%
 lhs_dual = constr*inv(Q)*constr';
 rhs_dual = b_2 + constr*inv(Q)*(-1*c);
 
@@ -43,25 +54,14 @@ x = inv(Q)*(constr'*lambda-(-1*c));
 disp('x=')
 disp(x)
 
-%%
-Q = [6 2 1; 2 5 2; 1 2 4];
-c = [-8 -3 -3]';
-
-disp("**************************")
-test = [6 2 1; 2 5 2; 1 2 4];
-[V,D] = eig(test);
-
-x = [-25 -25 -25]';
-disp('x=')
-disp(x)
-
-value = -1*x'*V*D*V'*x;
-
-disp("Value = ")
-disp(value)
 
 %%
-%Moving the (4) Constraint in Unit Test Toy Problem #1
+%Moving the (4) Constraint in Unit Test Toy Problem #1 (CLT)
+%We then solve a linear system to obtain the new solution
+%See Validation subsection of Section 1.2 for more information
+%and see the test_receive_data_CLT_DCZ and 
+%test_receive_data_CLT_DCZ_non_negative unittests in that section
+
 constr1 = [2 5];
 constr2 = [2 -3];
 constr3 = [2 1];
@@ -85,7 +85,8 @@ disp(x_sol)
 
 
 %%
-%Data for the project_to_F function
+%Data for testing the project_to_F function
+%See Validation/Usage subsection of Section 1.3
 %Thanks to 
 %https://www.mathworks.com/help/matlab/matlab_prog/anonymous-functions.html
 %for being a good reference for the @ functions
@@ -111,6 +112,7 @@ end
 
 %%
 %Creating some stuff for gradient_step
+%See Validation/Usage subsection of Section 1.3
 OGD = @(eta,c_t,x_t,xbar_t) (c_t - eta*(x_t-xbar_t));
 
 lb = -50;
@@ -144,7 +146,8 @@ for i = 1:2
 end
 
 %%
-%Data for the loss function objective function
+%Data for the loss_function objective function
+%See Validation/Usage subsection of Section 1.4
 
 update_func = @(x) ((2.5-x(1))^2 + (3-x(2))^2);
 
@@ -166,7 +169,9 @@ for i = 1:3
 end
 
 %%
-%Function for Update rule
+%Data for update_rule_optimization_model objective function
+%See Validation/Usage subsection of Section 1.4
+
 
 update_func = @(c,x) (0.5*((c(1)-2)^2 + (c(2)+3)^2) + ...
     (5/sqrt(30))*((2.5-x(1))^2 + (3-x(2))^2));

@@ -33,7 +33,7 @@ class Online_IO():
     
     def __init__(self,initial_model=None,Qname='Q',cname='c',Aname='A',bname='b',Dname='D',fname='f',\
                  dimQ=(0,0),dimc=(0,0),dimA=(0,0),dimD=(0,0),binary_mutable=[0,0,0,0,0,0],non_negative=0,\
-                 feasible_set_C=None): 
+                 feasible_set_C=None,var_bounds=None): 
         
         #We are assuming that binary_mutable is in the order of Q,c,A,b,D,f
         
@@ -89,7 +89,7 @@ class Online_IO():
         self.opt_batch_sol = []
         
         ###### BMPS_online_GD Attributes #####
-        #self.var_bounds = var_bounds #if there are variable bounds, 
+        self.var_bounds = var_bounds #if there are variable bounds, 
                                     #needs to be passed in as a tuple
                                     #FOR NOW, only enabling for BMPS
         self.BMPS_subproblem = None
@@ -309,7 +309,7 @@ class Online_IO():
             self.dong_iteration_num = self.dong_iteration_num + 1 #increasing the iteration count
             ### Step 1: Calculating Loss ###
             loss_this_iteration = self.loss_function(y=self.noisy_decision_dong,\
-                                            theta=self.c_t_dong,if_solve=1)
+                                            theta=self.c_t_dong)
             self.losses_dong.append(loss_this_iteration)
             
             #### Step 2: Update Rule ####
@@ -321,9 +321,10 @@ class Online_IO():
             self.c_t_dict_dong[self.dong_iteration_num] = self.c_t_dong
             
             #### Step 3: Calculate Batch Solution ####
-            self.calculate_batch_sol(dimQ=self.model_data_dimen['Q'],dimc=self.model_data_dimen['c'],\
-                                     dimA=self.model_data_dimen['A'],\
-                                     dimD=self.model_data_dimen['D'])
+            ## Something to do in the future ##
+            #self.calculate_batch_sol(dimQ=self.model_data_dimen['Q'],dimc=self.model_data_dimen['c'],\
+            #                         dimA=self.model_data_dimen['A'],\
+            #                         dimD=self.model_data_dimen['D'])
             
             
         elif self.alg_specification == "BMPS_online_GD":

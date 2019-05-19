@@ -14,9 +14,6 @@ import pickle
 from online_IO_files.online_IO_source.online_IO import Online_IO #importing the GIO class for testing
 
 ##u_i are positive
-
-##Going to do linear knapsack problem (for now)
-
 ##T = 500 observations with n = 50 goods for each random instance
 
 num_samples = 500
@@ -66,7 +63,6 @@ def utility_func(model):
 
 forward_model_BMPS.obj_rule = pyo.Objective(rule=utility_func,sense=pyo.minimize)
 
-#pdb.set_trace()
 
 #### Step 1: Generate p_t and y_t ####
 #Pyomo really does work with dictionaries
@@ -109,14 +105,7 @@ for ns in range(1,num_samples+1):
     x_t_array = np.fromiter(x_t_dict.values(),dtype=float,count=len(x_t_dict))
     x_t_array_col = np.reshape(x_t_array,(len(x_t_dict),1))
     
-    #print("another iteration complete")
-    #pdb.set_trace()
-    
-    #y_t_np_array = np.zeros((10,1))
-    
-    #for key,value in x_t_dict.items(): #need to transform into a column vector
-        #y_t_np_array[key-1,0] = value + np.random.uniform(-0.25,0.25)
-        
+    print("another BMPS data generation iteration complete")       
         
     #### Putting things in Dictionaries at the End ####
     p_t_samples_dict[ns] = p_t_dict

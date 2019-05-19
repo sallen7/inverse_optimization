@@ -3,7 +3,6 @@ sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_f
 
 import copy
 import time
-import pytest
 import pdb #for debugging
 import numpy as np                     
 import pyomo.environ as pyo
@@ -27,25 +26,25 @@ from experiment_BMPS_consumer_behavior_gen_data import num_samples
 #https://stackoverflow.com/questions/27570789/do-i-still-need-to-file-close-when-dumping-a-pickle-in-one-line
 # for suggesting that we should be closing out the files that we open
 
-pickle_in = open("BMPS_p_t.pickle","rb")
-p_t_samples = pickle.load(pickle_in) 
-pickle_in.close()
+loading_data_info = open("BMPS_p_t.pickle","rb")
+p_t_samples = pickle.load(loading_data_info) 
+loading_data_info.close()
 
 #pdb.set_trace()
 
-pickle_in = open("BMPS_x_t.pickle","rb")
-x_t_samples = pickle.load(pickle_in)
-pickle_in.close()
+loading_data_info2 = open("BMPS_x_t.pickle","rb")
+x_t_samples = pickle.load(loading_data_info2)
+loading_data_info2.close()
 
-pickle_in = open("BMPS_RHS_t.pickle","rb")
-RHS_t_samples = pickle.load(pickle_in)
-pickle_in.close()
+loading_data_info3 = open("BMPS_RHS_t.pickle","rb")
+RHS_t_samples = pickle.load(loading_data_info3)
+loading_data_info3.close()
 
-pickle_in = open("BMPS_true_utility_vec.pickle","rb")
-true_u_vec = pickle.load(pickle_in) 
+loading_data_info4 = open("BMPS_true_utility_vec.pickle","rb")
+true_u_vec = pickle.load(loading_data_info4) 
 true_u_vec = -1*true_u_vec #since we are minimizing the negative 
 #so the guesses that come back will be negative utility values
-pickle_in.close()
+loading_data_info4.close()
 
 #pdb.set_trace()
 
@@ -105,14 +104,16 @@ feasible_c_region.greater_than_negative_one_constraint = pyo.Constraint(feasible
 
 #Note that initial guess of c is vector of 1s
 
-time_0 = time.clock() #actual start of the algorithm
+time_0 = time.process_time() #actual start of the algorithm
 
 #pdb.set_trace()
 
 online_cb = Online_IO(cb_model_BMPS,Qname='None',cname='uvec',Aname='p_t',\
           bname='RHS',Dname='None',fname='None',dimQ=(0,0),dimc=(50,1),\
           dimA=(1,50),dimD=(0,0),binary_mutable=[0,0,1,1,0,0],non_negative=1,\
-          feasible_set_C=feasible_c_region) #var_bounds=(0,1))
+          feasible_set_C=feasible_c_region,var_bounds=(0,1))
+
+
 #NOTE: TO RUN THIS EXPERIMENT NOW, I NEED TO THROW IN CONSTRAINTS INVOLVING keeping the x BELOW 1
 #would require me to generate a completely different p_t - MUCH bigger
 #might need to actually reintroduce var_bounds for this experiment to work easily...
@@ -168,7 +169,7 @@ for i in range(1,num_samples+1):
 pdb.set_trace()
     
 print("Run time (seconds) for the script: ")             
-time_1 = time.clock() - time_0
+time_1 = time.process_time() - time_0
 print(time_1)      
 
 
@@ -192,10 +193,11 @@ BMPS_obj_error = np.zeros((num_samples,))
 BMPS_sol_error = np.zeros((num_samples,))
 BMPS_total_error = np.zeros((num_samples,))
 
-for i in range(1,num_samples+1):
+for i in range(1,num_samples+1): #cannot directly compare graph to paper bc we use 1/sqrt(t) - might need to run for more iterations?
     BMPS_obj_error[i-1] = np.dot(np.transpose(c_t_dict_vecs[i]),(x_t_samples[i]-xbar_dict_vecs[i]))
-    BMPS_sol_error[i-1] = np.dot(np.transpose(true_u_vec),(x_t_samples[i]-xbar_dict_vecs[i]))
-    BMPS_total_error[i-1] = BMPS_obj_error[i-1] - BMPS_sol_error[i-1]
+    BMPS_sol_error[i-1] = np.dot(np.transpose(true_u_vec),(x_t_samples[i]-xbar_dict_vecs[i])) #since we made u_vec as like negative ok?
+    BMPS_total_error[i-1] = BMPS_obj_error[i-1] - BMPS_sol_error[i-1] #screwed up because of my negative? BECAUSE OF THE ARG MIN
+                    #THING AND MY NOT THINKING ABOUT THE OBJECTIVE FUNC THE WAY i SHOULD BE??
  
 ### Need to do the cumsum ###
 BMPS_obj_error = np.divide(np.cumsum(BMPS_obj_error),np.arange(1,num_samples+1))
@@ -216,7 +218,7 @@ plt.ylabel('Solution error: u_true^T (xbar_t-x_t)',fontsize=20)
 plt.title('BMPS Solution Error',fontsize=20)
 
 plt.subplot(133)
-error_graph = plt.plot(np.arange(1,num_samples+1),BMPS_sol_error)
+error_graph = plt.plot(np.arange(1,num_samples+1),BMPS_total_error)
 plt.xlabel('Iterations',fontsize=20)
 plt.ylabel('Total error: Obj Error - Sol Error',fontsize=20)
 plt.title('BMPS Total Error',fontsize=20)

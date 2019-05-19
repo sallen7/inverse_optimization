@@ -360,7 +360,7 @@ def update_rule_optimization_model(self,y,theta,eta_t):
     
     return new_c_t
 
-def calculate_batch_sol(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
+def calculate_batch_sol_notgreat(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
                            dimD=(0,0),bigM=100000):
     ###NEED TO SAVE ALL OF THE YS###
     #So we will copy over the KKT model (like did in prev methods and 
@@ -428,10 +428,33 @@ def calculate_batch_sol(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
         for param in KKT_model.component_objects(pyo.Param):
             setattr(set_S,param.name,pyo.Param(param._index,initialize=param._data))
         
+        
+        #############################################################################
+        
+        #NEW THING 5/8/2019: the error is coming from the fact that the stationary condition functions are 
+        #still being constructed here for non-negative == 1
+        #SO we should actually construct all the constraints first and then,
+        #if non-negative ==1, we should delete the constraints that should be deleted
+        
+        if self.non_negative == 0:
+            for constr in KKT_model.component_objects(pyo.Constraint):
+                #pdb.set_trace()
+                setattr(set_S,constr.name,pyo.Constraint(constr._index,rule=constr.rule))
+                #CAN always move back to after sel.non_negative if we need to
+        
         #########################################################
         ########################################################
         #### Constructing Expressions IF you had non_negative == 1 ####
         if self.non_negative == 1:
+        ### Need to Delete the constraints pertaining to non_negative==1 ##    
+        #Need to delete the stationary_disjunctive_1 and 2 constraints
+        # don't need to delete the other disjunctive constraints bc they
+        # don't involve the expression
+            
+            #### POTENTIALLY COME BACK TO ####
+            #set_S.del_component(set_S.stationary_disjunctive_1)
+            #set_S.del_component(set_S.stationary_disjunctive_2) 
+            
         ### Define the Expression for Stationarity Condition ###
             if n2==0 and m>0 and p>0:
                 def KKT_stationarity_expr_rule(model,i): #no Q
@@ -495,23 +518,27 @@ def calculate_batch_sol(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
 #            
 #            set_S.x_disjunctive_2 = pyo.Constraint(set_S.xindex,\
 #                                                    rule=x_disjunctive_2)
-        
-        
+            
+            ###DO NOT CONSTRUCT CONSTRAINTS INVOLVING THE EXPRESSIONS###
+            for constr in KKT_model.component_objects(pyo.Constraint):
+                if (constr.name == "stationary_disjunctive_1") or (constr.name == "stationary_disjunctive_2"):
+                    pass
+                else:
+                    setattr(set_S,constr.name,pyo.Constraint(constr._index,rule=constr.rule))
+
         ################################################################
         ###############################################################
+        
+        #ADD: 5/11/2019
+        #COULD WE ALSO JUST copy and paste all of the KKT conditions stuff right into this
+        #block?
         
         #for expr in KKT_model.component_objects(pyo.Expression):
             #pdb.set_trace() #need to understand the expression stuff better
             #setattr(set_S,expr.name,pyo.Expression(expr._index,expr=expr._data)) #YEAH something wrong with expression
             ##NOTE 4/30/2019: I THINK THERE IS STILL SOMETHING WRONG WITH THE EXPRESSION
         
-        #NEW THING 5/8/2019: the error is coming from the fact that the stationary condition functions are 
-        #still being constructed here for non-negative == 1
-        #SO we should actually construct all the constraints first and then,
-        #if non-negative ==1, we should delete the constraints that should be deleted
-        for constr in KKT_model.component_objects(pyo.Constraint):
-            #pdb.set_trace()
-            setattr(set_S,constr.name,pyo.Constraint(constr._index,rule=constr.rule))
+        
     
     #########    END DEFINITION OF BLOCK RULE    ###################
     
@@ -537,7 +564,7 @@ def calculate_batch_sol(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
     
     ##### Step 3: Generating ``Non-anticipatory'' Constraints #####
     if self.dong_iteration_num > 1: #only generate if have more than 1 block
-        pdb.set_trace()
+        #pdb.set_trace()
         def equalizing_c_across_blocks(model,i,j,k):
             return getattr(model,"set_S_"+str(i)).c[k] == getattr(model,"set_S_"+str(j)).c[k]
         
@@ -545,9 +572,10 @@ def calculate_batch_sol(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
         #for demonstrating how to use the combinations function 
         current_batch_model.equalizing_c_constraints = \
         pyo.Constraint(list(combinations(range(1,self.dong_iteration_num+1),2)),\
-                       current_batch_model.set_S_1.xindex,rule=equalizing_c_across_blocks)
-    
-        pdb.set_trace() #THINK THERE COULD BE ISSUES HERE
+            current_batch_model.set_S_1.xindex,rule=equalizing_c_across_blocks)
+        
+        #could this be a prob: current_batch_model.set_S_1.xindex
+        #pdb.set_trace() #THINK THERE COULD BE ISSUES HERE
         
     #pdb.set_trace() #NOTE 4/30/2019 - could the equalizing constraints be causing a problem?
     
@@ -566,13 +594,287 @@ def calculate_batch_sol(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
     ## Delete Components and Put Model in Attribute #####
     if self.dong_iteration_num > 1:
         current_batch_model.del_component(current_batch_model.equalizing_c_constraints)
+        current_batch_model.del_component(current_batch_model.equalizing_c_constraints_index_0)
+        current_batch_model.del_component(current_batch_model.equalizing_c_constraints_index)
     
     current_batch_model.del_component(current_batch_model.batch_obj_func)   
     
     self.batch_model = current_batch_model.clone()
     
     print("At end of batch sol; make sure to check that things have been deleted")
-    pdb.set_trace()
+    #pdb.set_trace() #yup they get deleted
+    
+    #RuntimeError: Cannot add component 'equalizing_c_constraints_index_0' 
+    #(type <class 'pyomo.core.base.sets.SimpleSet'>) to block 'unknown': 
+    #a component by that name (type <class 'pyomo.core.base.sets.SimpleSet'>) 
+    #is already defined.
+    
+    #So the first set of equalizing constraints ARE actually constructed
+    #The problem becomes when the SECOND set of equalizing constraints has to
+    #be constructed
+    #NEED to make sure that the objective function gets deleted
+    
+    #SO I think it is (1) possible that maybe something isn't getting deleted like
+    #it should be (need to check del_component)
+    # (2) could 
+    
+    
+    #ALSO need to fix that constraint thing!! (See notes above)
+    
+    
+def calculate_batch_sol(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
+                           dimD=(0,0),bigM=100000):
+    
+    ##### Step 0: Set up - Copying Over Models and Sets #####
+    KKT_model = self.KKT_conditions_model.clone() 
+    KKT_model.c.unfix()
+    
+    (n,ph) = dimc #assume c is column vector
+    (m,ph) = dimA 
+    (p,ph) = dimD #some notation use from Dr. Gabriel's ENME741 notes
+    (n2,ph) = dimQ #n2 for second parameter definition
+    
+    name_of_block = "set_S_" + str(self.dong_iteration_num)
+    current_batch_model = self.batch_model.clone()
+    
+    ##### Step 1: Block Function #####
+    def batch_model_block_func(set_S):
+        #We don't have to do like a "block declaration" - done outside of the 
+        #function for us!
+        
+        ### Index Sets ###
+        set_S.xindex = pyo.RangeSet(1,n)
+        set_S.uindex = pyo.RangeSet(1,m)
+        set_S.vindex = pyo.RangeSet(1,p)
+        
+        ### Variables ###
+        set_S.x = pyo.Var(set_S.xindex)
+        set_S.u = pyo.Var(set_S.uindex,domain=pyo.NonNegativeReals)
+        set_S.v = pyo.Var(set_S.vindex)
+        #set_S.z_non_neg = pyo.Var(set_S.xindex,\
+        #                    domain=pyo.Binary) #same number of z vars as u vars
+        #set_S.z = pyo.Var(set_S.uindex,domain=pyo.Binary)
+        set_S.c = pyo.Var(set_S.xindex) #NEW CODE 4/30/2019: needed a c variable because 
+                                #the KKT_model has c variables
+        
+        ## Think this should be the ONLY thing we keep from all of this ##
+        for param in KKT_model.component_objects(pyo.Param):
+            setattr(set_S,param.name,pyo.Param(param._index,initialize=param._data))
+        
+        #### CHANGING THE BLOCK FROM HERE ON DOWN #####
+        
+        #############################################################################
+        ##### Step 1: Write out the Stationarity Conditions #####
+    
+        ## Establishing the KKT Stationarity Stuff ##
+        #Determining the Stationarity Rule to Use Based upon Existance of Data
+        #We will assume that c vector is always present (for now) but all
+        #others will be up for grabs
+        
+        ### Version A: x Decision Variables are Free ###
+        if self.non_negative == 0:
+            if n2==0 and m>0 and p>0: #A mat, D mat, no Q
+                def KKT_stationarity_rule(model,i): #no Q
+                    return model.c[i]\
+                    + sum(model.A[j,i]*model.u[j] for j in range(1,m+1)) \
+                    + sum(model.D[j,i]*model.v[j] for j in range(1,p+1)) == 0
+                    
+            elif n2==0 and m>0 and p==0: #no Q, no D
+                def KKT_stationarity_rule(model,i):
+                    return model.c[i] + sum(model.A[j,i]*model.u[j] for j in range(1,m+1)) == 0
+                
+            elif n2>0 and m>0 and p>0: #have all the data
+                def KKT_stationarity_rule(model,i):
+                    return sum(model.Q[i,j]*model.x[j] for j in range(1,n+1)) + model.c[i]\
+                    + sum(model.A[j,i]*model.u[j] for j in range(1,m+1)) \
+                    + sum(model.D[j,i]*model.v[j] for j in range(1,p+1)) == 0
+                    
+            elif n2==0 and m==0 and p>0: #no Q no A
+                def KKT_stationarity_rule(model,i):
+                    return model.c[i] + sum(model.D[j,i]*model.v[j] for j in range(1,p+1)) == 0
+                
+            elif n2>0 and m==0 and p>0: #Q,D,c no A
+                def KKT_stationarity_rule(model,i):
+                    return model.c[i] + sum(model.Q[i,j]*model.x[j] for j in range(1,n+1)) +\
+                    sum(model.D[j,i]*model.v[j] for j in range(1,p+1)) == 0
+            
+            elif n2>0 and m>0 and p==0: #Q,c,A no D
+                def KKT_stationarity_rule(model,i):
+                    return model.c[i] + sum(model.Q[i,j]*model.x[j] for j in range(1,n+1)) +\
+                    sum(model.A[j,i]*model.u[j] for j in range(1,m+1)) == 0
+            
+            set_S.stationary_conditions = pyo.Constraint(set_S.xindex,rule=KKT_stationarity_rule)
+        
+        ### Version B: x Decision Variables are Non-Negative ###
+        elif self.non_negative == 1:
+            ### Define the Expression for Stationarity Condition ###
+            if n2==0 and m>0 and p>0:
+                def KKT_stationarity_expr_rule(model,i): #no Q
+                    return model.c[i]\
+                    + sum(model.A[j,i]*model.u[j] for j in range(1,m+1)) \
+                    + sum(model.D[j,i]*model.v[j] for j in range(1,p+1))
+                    
+            elif n2==0 and m>0 and p==0: #no Q, no D
+                def KKT_stationarity_expr_rule(model,i):
+                    return model.c[i] + sum(model.A[j,i]*model.u[j] for j in range(1,m+1))
+                
+            elif n2>0 and m>0 and p>0: #have all the data
+                def KKT_stationarity_expr_rule(model,i):
+                    return sum(model.Q[i,j]*model.x[j] for j in range(1,n+1)) + model.c[i]\
+                    + sum(model.A[j,i]*model.u[j] for j in range(1,m+1)) \
+                    + sum(model.D[j,i]*model.v[j] for j in range(1,p+1))
+                    
+            elif n2==0 and m==0 and p>0: #no Q no A
+                def KKT_stationarity_expr_rule(model,i):
+                    return model.c[i] + sum(model.D[j,i]*model.v[j] for j in range(1,p+1))
+            
+            elif n2>0 and m==0 and p>0: #Q,D,c no A
+                def KKT_stationarity_expr_rule(model,i):
+                    return model.c[i] + sum(model.Q[i,j]*model.x[j] for j in range(1,n+1)) +\
+                    sum(model.D[j,i]*model.v[j] for j in range(1,p+1))
+            
+            elif n2>0 and m>0 and p==0: #Q,c,A no D
+                def KKT_stationarity_expr_rule(model,i):
+                    return model.c[i] + sum(model.Q[i,j]*model.x[j] for j in range(1,n+1)) +\
+                    sum(model.A[j,i]*model.u[j] for j in range(1,m+1))
+            
+                
+            set_S.stationary_cond_expr = pyo.Expression(set_S.xindex,\
+                                            rule=KKT_stationarity_expr_rule)
+            
+            ##### Define the Disjunctive Constraints for Stationarity Condition #####
+            ## Two sets: One set for the Stationary Condition and One for the x ##
+            set_S.z_non_neg = pyo.Var(set_S.xindex,\
+                                domain=pyo.Binary) #same number of z vars as u vars
+            
+            ## Stationary Conditions ##
+            def stationary_disjunctive_1(model,i):
+                return model.stationary_cond_expr[i] <= bigM*(1-model.z_non_neg[i])
+            
+            set_S.stationary_disjunc_1 = pyo.Constraint(set_S.xindex,\
+                                                    rule=stationary_disjunctive_1)
+            def stationary_disjunctive_2(model,i):
+                return 0 <= model.stationary_cond_expr[i]
+            
+            set_S.stationary_disjunc_2 = pyo.Constraint(set_S.xindex,\
+                                                    rule=stationary_disjunctive_2)
+            
+            ## x Var Conditions ## 
+            def x_disjunctive_1(model,i):
+                return 0 <= model.x[i]
+            
+            set_S.x_disjunctive_1 = pyo.Constraint(set_S.xindex,\
+                                                    rule=x_disjunctive_1)
+            
+            def x_disjunctive_2(model,i):
+                return model.x[i] <= bigM*(model.z_non_neg[i])
+            
+            set_S.x_disjunctive_2 = pyo.Constraint(set_S.xindex,\
+                                                    rule=x_disjunctive_2)
+        
+        else:
+            print("Error: Bad value for non_negative parameter. Must be 0 or 1.")
+            return                
+    
+        ##### Step 2: Complementarity Constraints #####
+        #We are going to do the disjunctive method ourselves
+        if m>0:
+            set_S.z = pyo.Var(set_S.uindex,domain=pyo.Binary) #same number of z vars as u vars
+            
+            ## Maintaining Feasibility of Ax <= b ##
+            def Ax_b_feasibility_rule(model,i):
+                return sum(model.A[i,j]*model.x[j] for j in range(1,n+1)) <= model.b[i]
+            
+            set_S.Ax_b_feas = pyo.Constraint(set_S.uindex,\
+                                                 rule=Ax_b_feasibility_rule)
+            
+            ## Disjunctive Constraints to Ensure Corresponding Rows of 
+            ## u == 0 OR Ax == b
+            def u_disjunctive(model,i):
+                return model.u[i] <= bigM*model.z[i]
+            
+            set_S.u_disjunc = pyo.Constraint(set_S.uindex,rule=u_disjunctive)
+            
+            def Ax_b_disjunctive(model,i):
+                return model.b[i] - sum(model.A[i,j]*model.x[j] for j in range(1,n+1))\
+                                <= bigM*(1-model.z[i])
+            
+            set_S.Ax_b_disjunc = pyo.Constraint(set_S.uindex,rule=Ax_b_disjunctive)
+        
+        ##### Step 3: Equality Constraints #####
+        if p>0:
+            def KKT_equality_constraints(model,i):
+                return sum(model.D[i,j]*model.x[j] for j in range(1,n+1)) == model.f[i]
+            
+            set_S.equality_conditions = pyo.Constraint(set_S.vindex,\
+                                                rule=KKT_equality_constraints)  
+        
+        
+    ################################################################
+    #########    END DEFINITION OF BLOCK RULE    ###################
+    ################################################################
+    
+    setattr(current_batch_model,name_of_block,pyo.Block(rule=batch_model_block_func))
+    
+    #pdb.set_trace()
+    
+    ##### Step 2: Creating New Objective Function #####
+    def batch_obj_func(model):
+        #Need to create a sum 
+        running_sum = 0
+        for (i,y) in self.noisy_decision_dict.items(): #4/30/2019: AM I CALLING ALL ys??
+            #getattr(model,"set_S_" + str(i)).x[j]
+            running_sum = running_sum +\
+            sum((y[j-1,0] - getattr(model,"set_S_" + str(i)).x[j])**2 for j in range(1,n+1))
+        
+        return running_sum
+    
+    current_batch_model.batch_obj_func = pyo.Objective(rule=batch_obj_func)
+    
+    #pdb.set_trace() #what does getattr(model,"set_S_1").c[1] get met?
+    #getattr is doing what it should be doing
+    
+    ##### Step 3: Generating ``Non-anticipatory'' Constraints #####
+    if self.dong_iteration_num > 1: #only generate if have more than 1 block
+        #pdb.set_trace()
+        def equalizing_c_across_blocks(model,i,j,k):
+            return getattr(model,"set_S_"+str(i)).c[k] == getattr(model,"set_S_"+str(j)).c[k]
+        
+        #Thanks to: https://www.geeksforgeeks.org/permutation-and-combination-in-python/
+        #for demonstrating how to use the combinations function 
+        current_batch_model.equalizing_c_constraints = \
+        pyo.Constraint(list(combinations(range(1,self.dong_iteration_num+1),2)),\
+            current_batch_model.set_S_1.xindex,rule=equalizing_c_across_blocks)
+        
+        #could this be a prob: current_batch_model.set_S_1.xindex
+        #pdb.set_trace() #THINK THERE COULD BE ISSUES HERE
+        
+    pdb.set_trace() #NOTE 4/30/2019 - could the equalizing constraints be causing a problem?
+    
+    ##### Step 4: Solving the Model #####
+    solver = SolverFactory("gurobi") #right solver to use because of 
+                                    #nonlinear objective function and the 
+                                    #possible binary variables
+    
+    results = solver.solve(current_batch_model)
+    print("This is the termination condition (calculate_batch_sol):",results.solver.termination_condition)
+    
+    self.opt_batch_sol.append(pyo.value(current_batch_model.batch_obj_func)) #put objective func
+                                            #value in opt_batch_sol attribute list
+    
+    ##### Step 5: Clean Up #####     
+    ## Delete Components and Put Model in Attribute #####
+    if self.dong_iteration_num > 1:
+        current_batch_model.del_component(current_batch_model.equalizing_c_constraints)
+        current_batch_model.del_component(current_batch_model.equalizing_c_constraints_index_0)
+        current_batch_model.del_component(current_batch_model.equalizing_c_constraints_index)
+    
+    current_batch_model.del_component(current_batch_model.batch_obj_func)   
+    
+    self.batch_model = current_batch_model.clone()
+    
+    print("At end of batch sol; make sure to check that things have been deleted")
+    pdb.set_trace() #yup they get deleted
     
     #RuntimeError: Cannot add component 'equalizing_c_constraints_index_0' 
     #(type <class 'pyomo.core.base.sets.SimpleSet'>) to block 'unknown': 

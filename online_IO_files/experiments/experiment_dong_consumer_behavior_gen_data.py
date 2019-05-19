@@ -109,13 +109,13 @@ for ns in range(1,num_samples+1):
 #Thanks to the following link for helping with this:
     #https://pythonprogramming.net/python-pickle-module-save-objects-serialization/
 #We followed steps from this link
-pickle_out = open("dong_p_t.pickle","wb") #think contains file info
-pickle.dump(p_t_samples_dict,pickle_out)
-pickle_out.close()
+write_pickle_file_name = open("dong_p_t.pickle","wb") #think contains file info
+pickle.dump(p_t_samples_dict,write_pickle_file_name)
+write_pickle_file_name.close()
 
-pickle_out = open("dong_y_t.pickle","wb")
-pickle.dump(y_t_samples_dict,pickle_out)
-pickle_out.close()
+write_pickle_file_name2 = open("dong_y_t.pickle","wb")
+pickle.dump(y_t_samples_dict,write_pickle_file_name2)
+write_pickle_file_name2.close()
 
 #NEED TO ADD ANOTHER COUPLE OF LINES TO DO THE SAME
 #THING FOR THE Y_T_SAMPLES dictionary
@@ -127,14 +127,6 @@ pickle_out.close()
                 #guess I need to think about the idea of having positive definite for
                 #minimization (and that guaranteeing a solution)
 
-
-###THINK WE NEED TO ADD THE THETA CONDITION TO THE UPDATE
-##RULE THAT ALLOWS PEOPLE TO SPECIFY THE INTERVAL OVER WHICH
-##THETA CAN BE DEFINED!!
-
-###Maybe we can add some kind of support for the 
-### sparse stuff that pyomo has for sparse parameter 
-## specifications
 
 
 

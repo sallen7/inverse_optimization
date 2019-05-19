@@ -19,23 +19,30 @@ import pickle
 import math
 
 from online_IO_files.online_IO_source.online_IO import Online_IO #importing the GIO class for testing
-from experiment_dong_consumer_behavior_gen_data import num_samples,c_dict 
+#from experiment_dong_consumer_behavior_gen_data import num_samples,c_dict 
+num_samples = 1000
+c_dict = {1:-1.180,2:-1.733,3:-1.564,4:-0.040,5:-2.443,6:-1.055,\
+          7:-4.760,8:-5.00,9:-1.258,10:-4.933} #made r negative since we will want to minimize
+
 #^don't need to introduce module sequence because we run this script within the
 #experiments directory
 
 ##### Step 0: Loading the Data & Set Up Model #####
 ###    Load Data    ###
-pickle_in = open("dong_p_t.pickle","rb")
+loading_data_info = open("dong_p_t.pickle","rb")
 
-p_t_samples = pickle.load(pickle_in) #it worked
+p_t_samples = pickle.load(loading_data_info) #it worked
                                     #will need to look into
                                     #the large data overhead
                                     #like if loading all this
                                     #data is gonna work out
                                     #AND need to see how the 
                                     #overwrite stuff will work
-pickle_in = open("dong_y_t.pickle","rb")
-y_t_samples = pickle.load(pickle_in)
+loading_data_info.close()
+
+loading_data_info2 = open("dong_y_t.pickle","rb")
+y_t_samples = pickle.load(loading_data_info2)
+loading_data_info2.close()
 
 ###    Set up Model    ###
 #a. Sets and Vars
@@ -74,9 +81,7 @@ def Q_param_rule(model,i,j):
 cb_model.Qmat = pyo.Param(cb_model.varindex,\
                 cb_model.varindex,rule=Q_param_rule)
 
-c_dict_dummy = {1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0}#{1:-1.180,2:-1.733,3:-1.564,4:-0.040,5:-2.443,6:-1.055,\
-          #7:-4.760,8:-5.00,9:-1.258,10:-4.933} #CANNOT have the solution as our c_dict
-                  #for the actual model
+c_dict_dummy = {1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0}
 
 cb_model.cvec = pyo.Param(cb_model.varindex,\
                                initialize=c_dict_dummy)
@@ -87,11 +92,13 @@ cb_model.cvec = pyo.Param(cb_model.varindex,\
 
 #Note that initial guess of c is vector of 1s
 
-time_0 = time.clock() #actual start of the algorithm
+time_0_process = time.process_time() #actual start of the algorithm
+#Thanks to: https://docs.python.org/3/library/time.html
+time_0_counter = time.perf_counter()
 
 online_cb = Online_IO(cb_model,Qname='Qmat',cname='cvec',Aname='p_t',\
           bname='bscalar',Dname='None',fname='None',dimQ=(10,10),dimc=(10,1),\
-          dimA=(1,10),dimD=(0,0),binary_mutable=[0,0,1,0,0,0],non_negative=1)
+          dimA=(1,10),dimD=(0,0),binary_mutable=[0,0,1,0,0,0],non_negative=1,feasible_set_C=(-5,0)) #NEW feasible_set_C added 5/12/2019
 
 online_cb.initialize_IO_method("Dong_implicit_update")
 
@@ -116,9 +123,13 @@ for i in range(1,num_samples+1):
     #### Step 3: Perform Update Rule ####
     online_cb.next_iteration(eta_factor=5) #go to the next iteration
     
-print("Run time (seconds) for the script: ")             
-time_1 = time.clock() - time_0
-print(time_1)      
+print("Process_time Run time (seconds) for the script: ")             
+time_1_process = time.process_time() - time_0_process
+print(time_1_process) 
+
+print("Perf_counter Run time (seconds) for the script: ")             
+time_1_counter = time.perf_counter() - time_0_counter
+print(time_1_counter)     
 
 #WANT TO MAKE SURE THAT THE SETTING OF THE C fixed variable values is
 #happening correctly
@@ -145,7 +156,7 @@ plt.show()
 
 ##### Step 4b: Graph 2-Norm Between c_t and c_true #####
     
-#c_dict has the true r
+#c_dict has the true r (negated true vec)
 c_ph = np.zeros((10,))
 for j in range(1,11):
     c_ph[j-1] = c_dict[j]
@@ -171,22 +182,22 @@ online_loss_np = np.array(online_cb.losses_dong)
 batch_loss_np = np.array(online_cb.opt_batch_sol)
 
 ## Cumsum Stuff ##
-cumsum_online_loss = np.cumsum(online_loss_np)
-cumsum_batch_loss = np.cumsum(batch_loss_np)
-
-regret = cumsum_online_loss - cumsum_batch_loss
-avg_regret = np.divide(regret,np.arange(1,num_samples+1))
-
-bound_func = lambda x: 1/(math.sqrt(x)) #following the lead of BMPS 2018
-
-pdb.set_trace()
-## Graphing ##
-avg_regret_plot = plt.semilogy(np.arange(1,num_samples+1),avg_regret,label='average regret')
-avg_regret_plot = plt.semilogy(np.arange(1,num_samples+1),bound_func(np.arange(1,num_samples+1)))
-plt.xlabel('Iterations',fontsize=20)
-plt.ylabel('Average Regret (log scale)',fontsize=20)
-plt.title('Average Regret and Bound on Regret',fontsize=20)
-plt.show()
+#cumsum_online_loss = np.cumsum(online_loss_np)
+#cumsum_batch_loss = np.cumsum(batch_loss_np)
+#
+#regret = cumsum_online_loss - cumsum_batch_loss
+#avg_regret = np.divide(regret,np.arange(1,num_samples+1))
+#
+#bound_func = lambda x: 1/(np.sqrt(x)) #following the lead of BMPS 2018
+#
+#pdb.set_trace()
+### Graphing ##
+#avg_regret_plot = plt.semilogy(np.arange(1,num_samples+1),avg_regret,label='average regret')
+#avg_regret_plot = plt.semilogy(np.arange(1,num_samples+1),bound_func(np.arange(1,num_samples+1)))
+#plt.xlabel('Iterations',fontsize=20)
+#plt.ylabel('Average Regret (log scale)',fontsize=20)
+#plt.title('Average Regret and Bound on Regret',fontsize=20)
+#plt.show()
 ####NEED TO COME BACK TO THIS AND SEE IF i NEED TO CHANGE ANYTHING ABOUT THE
 ### GRAPHS - need to test if stuff works
         

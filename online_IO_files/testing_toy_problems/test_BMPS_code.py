@@ -1,19 +1,23 @@
-#### test_BMPS_code ####
+#### test_BMPS_code.py ####
+# 5/18/2019
 
-#Need to have a test on the receive_data stuff
-#from the DCZ receive_data tests - need to make sure
-#BMPS is being updated properly (will need to ensure
-#that the BMPS_subproblem is being updated well)
+#This file contains the unit tests for the B\"armann, Martin, Pokutta, &
+#Schenider Online_IO algorithm methods.  See the "Validation/Usage" subsection 
+#(first part) of the "Online Gradient Descent for Online Inverse Optimization"
+#section for full details/explanation regarding each test.
 
-#also need to remember that receive_data for this method
-#does also update the objective function with most recent c
-#Is this something that should be moved??
+#The tests are labeled in terms of the (1) method they are testing and
+#(2) the unit test toy problem data they are using.
 
-#we can directly test the updating of the objective function 
-#by feeding in the two different 
-#objective functions for the chan problem.
+#We have written "Step __" headers throughout the file indicating when we
+#are transitioning between testing methods.
 
-#Look at the validation thing I wrote up for BMPS
+#Additional notes:
+
+#We utilize a MATLAB script called "generating_data.m" to obtain some
+#of the test data.  See the Chapter documentation for more information.
+
+#CLT = Chan, Lee, and Terekhov
 
 import sys
 sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
@@ -33,6 +37,11 @@ from online_IO_files.online_IO_source.online_IO import Online_IO #importing the 
 #expressions into strings
 #https://pyomo.readthedocs.io/en/latest/developer_reference/expressions/managing.html
 from pyomo.core.expr import current as EXPR
+
+
+
+
+
 
 ##### Step 1: Check that compute_standardized_model #####
 ## We need to check that the method creates the right standardized model ##
@@ -89,9 +98,6 @@ def test_compute_standardized_model_quadratic_portfolio_Gabriel(quadratic_portfo
 
 def test_project_to_F_obj_func(quadratic_NW):
     #### Part 1: Defining the set C/F #####
-    #TECHNICALLY HAVE A BETTER DEF FOR THE SET IN THE test_mechanics_methods
-    #script
-    #{1:-8,2:-3,3:-3}
     
     feasible_c_region = pyo.ConcreteModel()
 
@@ -116,7 +122,7 @@ def test_project_to_F_obj_func(quadratic_NW):
     quadratic_NW.feasible_set_C = feasible_c_region.clone()
     
     #########################################################
-    #We really just need to generate the model and then
+    ## Part 2: Initialize the Model ##
     
     quadratic_NW.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0})
     #the first y_t_BMPS will be the c that we passed into the initialization
@@ -127,6 +133,8 @@ def test_project_to_F_obj_func(quadratic_NW):
     ## Extracting the project_to_F model to check the objective function ##
     model_F = quadratic_NW.project_to_F_model.clone()
     
+    
+    ## Part 3: Test the Model ##
     ## Input 1 ##
     model_F.c[1] = 7
     model_F.c[2] = 6
@@ -191,7 +199,7 @@ def test_project_to_F_test_problem(chan_lee_terekhov_linear_inequalities):
     assert solution == {1:0.0, 2:1.0}
     
     
-##### Step 3: solve_subproblem  
+##### Step 3: solve_subproblem  ############ 
 
 def test_solve_subproblem_CLT(chan_lee_terekhov_linear_inequalities):
     chan_lee_terekhov_linear_inequalities.feasible_set_C = pyo.ConcreteModel()
@@ -200,10 +208,6 @@ def test_solve_subproblem_CLT(chan_lee_terekhov_linear_inequalities):
     ### Solving the Model ###
     chan_lee_terekhov_linear_inequalities.solve_subproblem() #using solve_subproblem
     solution = copy.deepcopy(chan_lee_terekhov_linear_inequalities.xbar_t_BMPS)
-    
-    #(n,ph) = solution.shape
-    #for i in range(0,n):
-    #    solution[i,0] = round(solution[i,0],1)
     
     ### xbar_t_BMPS is a column vector ###    
     assert np.all(np.around(solution,decimals=1) == np.array([[3.0],[4.0]])) 
@@ -232,10 +236,7 @@ def test_solve_subproblem_quadratic_portfolio_Gabriel(quadratic_portfolio_Gabrie
     assert np.all(np.around(solution,decimals=2) == np.array([[0.20],[0.44],[0.36]]))
 
     
-##### Step 4: Check gradient_step #####
-#can specify stuff in the attributes and then 
-#run the gradient step to make sure it did what we expected it to do
-#Simple!    
+##### Step 4: Check gradient_step #####    
     
 def test_gradient_step(chan_lee_terekhov_linear_inequalities):
     ### Setting things up ###

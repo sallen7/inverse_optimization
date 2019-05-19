@@ -1,19 +1,26 @@
-#### Unit Test File for the Chan Example ####
+#### test_DCZ_code.py ####
+#5/18/2019
+
+#This file contains the unit tests for the Dong, Chen, & Zeng (2018)
+#Online_IO algorithm methods. See the "Validation/Usage" subsection (first part)
+#of the larger "Implicit Update Rule for Online Inverse Optimization" section
+#of the Chapter documentation for full details/explanation regarding each test.
+
+#The tests are labeled in terms of the (1) method they are testing and
+#(2) the unit test toy problem data they are using
+
+#We have written "Step __" headers throughout the file indicating when we
+#are transitioning between testing methods.
+
+#Additional notes:
+
+#We utilize a MATLAB script called "generating_data.m" to obtain some
+#of the test data.  See the Chapter documentation for more information.
+
+#CLT = Chan, Lee, and Terekhov
 
 #Different ways to call pytest:
 #https://docs.pytest.org/en/latest/usage.html
-
-#Need to remember that we are just testing
-#mechanics of the model; we don't need to 
-#come up with this elaborate "answer we are trying
-#to get to through multiple iterations"
-
-#BUT, saying that, do we want to give all of the
-#exact data (c,x0,etc)
-
-#NEW COMMENT: 5/3/2019 Many of the Chan tests are not extremely useful
-#or at least could be combined more (and definitely don't need a million
-#fixtures defined to implement them)
 
 import sys
 sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
@@ -45,12 +52,12 @@ def test_compute_KKT_conditions_CLT(chan_lee_terekhov_linear_inequalities):
     model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
     
     #####################################################
-    # NEW CODE 4/29/2019: I'm putting the objective function in the
-    # test because want to be able to use quadratic_NW for multiple
-    # tests
-    ### Adding Objective Function: As long as Satisfy KKT N&S then
-    ## Can use Constant Objective Function 
-    model.obj_func = pyo.Objective(expr=5)    
+    #model.obj_func = pyo.Objective(expr=5)    
+    
+    #### Dummy variable for objective function #####
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
     
     #################################################
     
@@ -71,13 +78,13 @@ def test_compute_KKT_conditions_CLT_non_zero(chan_lee_terekhov_linear_inequaliti
     model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
     
     #####################################################
-    # NEW CODE 4/29/2019: I'm putting the objective function in the
-    # test because want to be able to use quadratic_NW for multiple
-    # tests
-    ### Adding Objective Function: As long as Satisfy KKT N&S then
-    ## Can use Constant Objective Function 
-    model.obj_func = pyo.Objective(expr=5)    
+    #model.obj_func = pyo.Objective(expr=5) 
     
+    #### Dummy Variable for Objective Function ####
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)    
+
     #################################################
     
     solver = SolverFactory("gurobi") 
@@ -97,12 +104,12 @@ def test_compute_KKT_conditions_quadratic_NW(quadratic_NW):
     model = quadratic_NW.KKT_conditions_model.clone()
     
     #####################################################
-    # NEW CODE 4/29/2019: I'm putting the objective function in the
-    # test because want to be able to use quadratic_NW for multiple
-    # tests
-    ### Adding Objective Function: As long as Satisfy KKT N&S then
-    ## Can use Constant Objective Function 
-    model.obj_func = pyo.Objective(expr=5)    
+    #model.obj_func = pyo.Objective(expr=5)    
+    
+    ### Dummy Variable for Objective Function ###
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
     
     #################################################
     
@@ -122,8 +129,11 @@ def test_compute_KKT_conditions_quadratic_portfolio_Gabriel(quadratic_portfolio_
       
     model = quadratic_portfolio_Gabriel.KKT_conditions_model.clone() 
     
-    ## Add constant objective function ##
-    model.obj_func = pyo.Objective(expr=5)
+    ## Dummy Variable for Objective ##
+    #model.obj_func = pyo.Objective(expr=5)
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
     
     #Solve the model
     solver = SolverFactory("gurobi") 
@@ -188,9 +198,7 @@ def test_loss_function_obj_func(chan_lee_terekhov_linear_inequalities):
     
     model_loss.x[1] = 32
     model_loss.x[2] = 41
-    
-    #print("obj_func_rounded_4_places",round(pyo.value(model_loss.obj_func(model_loss)),4))
-    
+        
     obj_value_loss = round(pyo.value(model_loss.obj_func(model_loss)),2)
     
     assert obj_value_loss == 2314.25 #had to go out to 2 decimal places to get
@@ -211,10 +219,7 @@ def test_loss_function_obj_func(chan_lee_terekhov_linear_inequalities):
     
     obj_value_loss = round(pyo.value(model_loss.obj_func(model_loss)),2)
     
-    assert obj_value_loss == 604.25
-    
-    #Might have to go out to the 2 decimals because of the 2.5 involved?
-    
+    assert obj_value_loss == 604.25    
 
 #### Step 3: Examine the update_rule_optimization_model ####
     
@@ -229,7 +234,10 @@ def test_update_rule_optimization_model_obj_func(chan_lee_terekhov_linear_inequa
     #need to pass in c_t, y, and eta_t
     y_t = np.array([[2.5],[3]])
     c_t = {1:2,2:-3}
-    eta_t = 5*(1/math.sqrt(30))
+    eta_t = 5*(1/math.sqrt(30)) #with next_iteration, a user would just pass in the 5 on the 30th iteration
+                                #to the eta_factor argument.  Here though, we are working with
+                                #update_rule_optimization_model directly, so we have to pass in 
+                                #eta_t entirely
     chan_lee_terekhov_linear_inequalities.dong_iteration_num = 1
     
     chan_lee_terekhov_linear_inequalities.update_rule_optimization_model(y=y_t,\
@@ -291,39 +299,3 @@ def test_update_rule_optimization_model_obj_func(chan_lee_terekhov_linear_inequa
     obj_value_update = round(pyo.value(model_update.obj_func(model_update)),1)
     
     assert obj_value_update == 1939.7
-    
-    
-    
-    
-###FOR THE update rule test, we still need to see if we should 
-#change the unfixed c values from their current values
-    #WE ALSO NEED TO ALLOW USERS TO RESTRICT DOMAIN OF C
-    
-####FOR the loss function, we can test this using our knowledge of the
-##Chan et all paper, bc it is essentially doing a minimum epsilon distance
-##Can check it with the Chan example (with a couple different ys)
-
-###We can test the quadratic capabilities and non-negativity capabilities
-## (coming soon - do we want an upper bound capability? or should we just make ppl
-#in put that as a constraint in the <= ? - Thinking about doing that, but
-#do have to solve the bigM problem)
-#with the example in Dr. Gabriel's lecture 0 with the 
-## portfolio estimation.  We will have to put in dummy data for c
-## (just set to 0) because we basically always assume we have a c
-
-##Haven't quite figured out how to test the update rule itself...
-    #Can I just do what I was planning to do before and form something
-    #on the side?
-
-##Do need to get going on the experiment (if want in time for Jacob
-##and want to keep documenting)    
-    
-###### MORE EXAMPLES #######
-    
-## REALLY NEED SOMETHING TO TEST OUT THE NEW non_negative thing
-## (2) Portfolio stuff   
-# (a) WE can test out the changing of the b parameter with this
-    #model since we have all of the solutions for the different min returns
-    
-    
-    

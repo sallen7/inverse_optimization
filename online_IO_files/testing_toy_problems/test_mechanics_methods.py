@@ -1,13 +1,23 @@
 ## test_mechanics_methods ##
+# 5/18/2019
 
-#We want to move tests that focus mainly on the mechanics methods of the 
-#Online_IO class to this file.
+#This test file contains the unit tests that are associated with the mechanics
+#methods of the Online_IO class.  As noted in the Chapter documentation, we will
+#be focusing on testing the receive_data method.
 
-#Think I also am going to be really ONLY focusing on the receive_data method
-#and testing that with many different things because the other methods
-#are tested via the experiment done for each of the math methods
-#I will say that the other methods just call other methods within the class
-#to carry out the execution of stuff (basically, will check...)
+#Readers can find more information regarding these tests in the "Validation"
+#subsection of the "Overview of Online Methods and the Online_IO Class" section
+#of the Chapter documentation.  We provide detailed explanations of all
+#the tests by name, so that is the place to go for explanations.
+
+#The names of the tests are meant to convey the (1) unit test toy problem
+#we are using and the (2) online inverse optimization method we are using
+#which is either DCZ or BMPS (initials of the researchers)
+
+#Additional Notes:
+
+#We utilize a MATLAB script called "generating_data.m" to obtain some
+#of the test data.  See the Chapter documentation for more information.
 
 #CLT = Chan, Lee, and Terekhov
 
@@ -41,7 +51,12 @@ def test_receive_data_quadratic_NW_DCZ(quadratic_NW):
                                     #the parameters accordingly
     
     model = quadratic_NW.KKT_conditions_model.clone()
-    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+    ## Dummy Variable ##
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
+    
+    #model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
     
     solver = SolverFactory("gurobi") 
     solver.solve(model)
@@ -82,12 +97,11 @@ def test_receive_data_quadratic_NW_DCZ(quadratic_NW):
         dual_vars[key] = round(value,4)
         
     assert solution == {1:0.4627,2:0.3957,3:-0.0198} 
-    #assert dual_vars = {1:0.2968,2:0.1358} #here is a minus sign thing 
-    #I need to check    
+        
 
 def test_receive_data_quadratic_NW_BMPS(quadratic_NW):
+    ###############################################################
     ### Generating the C/F Feasible Region for Projection Purposes ###
-    #I COULD HAVE ALSO JUST FED IN THE CORRECT VECTOR TO c_t_BMPS....
     feasible_c_region = pyo.ConcreteModel()
 
     feasible_c_region.varindex = pyo.RangeSet(1,3)
@@ -119,7 +133,7 @@ def test_receive_data_quadratic_NW_BMPS(quadratic_NW):
     ### Test 1 ###
     
     A_1 = {(1,1):-17, (1,2):0, (1,3):-18, (2,1):0, (2,2):1, (2,3):11}
-    b_1 = {1:18, 2:0} #pretty sure single indexing for bs
+    b_1 = {1:18, 2:0} #single indexing for bs
     
     ## Difference for BMPS is that the objective function for BMPS_subproblem
     ## will be updated as well
@@ -137,11 +151,8 @@ def test_receive_data_quadratic_NW_BMPS(quadratic_NW):
 
     for (key,value) in solution.items():
         solution[key] = round(value,4)
-#    for (key,value) in dual_vars.items():
-#        dual_vars[key] = round(value,4)
         
     assert solution == {1:-0.9430,2:1.2038,3:-0.1094} 
-    #assert dual_vars == {1:0.6682,2:0.9141}
     
     ### Test 2 ###
     
@@ -158,17 +169,11 @@ def test_receive_data_quadratic_NW_BMPS(quadratic_NW):
     
     ## Rounding the Solution ##
     solution = model.x.extract_values()
-    #dual_vars = model.v.extract_values()
 
     for (key,value) in solution.items():
         solution[key] = round(value,4)
-#    for (key,value) in dual_vars.items():
-#        dual_vars[key] = round(value,4)
         
     assert solution == {1:0.4627,2:0.3957,3:-0.0198} 
-    #assert dual_vars = {1:0.2968,2:0.1358} #here is a minus sign thing 
-    #I need to check    
-
 
 
 def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
@@ -177,14 +182,20 @@ def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
     
     ### Passing Data: Test 1 ###
     A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.9, (4,2):1}
-    #2,5],[2,-3],[2,1],[-2,-1
+    
     b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
     
     chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
                                     #the parameters accordingly
     
     model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
-    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+    
+    ### Dummy Variable Method ###
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
+    
+    #model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
     
     solver = SolverFactory("gurobi") 
     solver.solve(model)
@@ -216,7 +227,8 @@ def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
     for (key,value) in solution.items():
         solution[key] = round(value,4)
         
-    assert solution == {1:3.2432,2:4.1622}
+    assert solution == {1:3.2432,2:4.1622} #we show that the solution changes!!
+    #data was updated correctly!!
     
     
 
@@ -228,14 +240,20 @@ def test_receive_data_CLT_DCZ_non_negative(chan_lee_terekhov_linear_inequalities
     
     ### Passing Data: Test 1 ###
     A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.9, (4,2):1}
-    #2,5],[2,-3],[2,1],[-2,-1
+    
     b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
     
     chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
                                     #the parameters accordingly
     
     model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
-    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+    
+    ### Dummy Variable Method ###
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
+    
+    #model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
     
     solver = SolverFactory("gurobi") 
     solver.solve(model)
@@ -250,7 +268,7 @@ def test_receive_data_CLT_DCZ_non_negative(chan_lee_terekhov_linear_inequalities
     ### Passing Data: Test 2 ###
     # 3.2432     4.1622
     A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.8, (4,2):1}
-    #2,5],[2,-3],[2,1],[-2,-1
+    
     b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
     
     chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
@@ -303,7 +321,7 @@ def test_receive_data_CLT_BMPS(chan_lee_terekhov_linear_inequalities):
     ### Passing Data: Test 2 ###
     # 3.2432     4.1622
     A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.8, (4,2):1}
-    #2,5],[2,-3],[2,1],[-2,-1
+
     b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
     
     chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
@@ -324,7 +342,7 @@ def test_receive_data_CLT_BMPS(chan_lee_terekhov_linear_inequalities):
     
     
 def test_receive_data_diff_c_CLT_BMPS(chan_lee_terekhov_linear_inequalities):
-     #Can directly pass in different c values into c_t_BMPS to check that 
+    #Can directly pass in different c values into c_t_BMPS to check that 
     #the c update step is working - can pass in the EXACT SAME
     #data for p_t and, before this, you could have changed the c_t_BMPS (look at style of this 
     #constraint again) 
@@ -341,7 +359,7 @@ def test_receive_data_diff_c_CLT_BMPS(chan_lee_terekhov_linear_inequalities):
     #We do still need to pass data in because we IDed A and b as being mutable (will just be the same data)
     
     A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):2, (4,2):1}
-    #2,5],[2,-3],[2,1],[-2,-1
+
     b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
     
     chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1,'bvec':b_1})
@@ -363,7 +381,7 @@ def test_receive_data_diff_c_CLT_BMPS(chan_lee_terekhov_linear_inequalities):
     chan_lee_terekhov_linear_inequalities.c_t_BMPS = {1:(3/5),2:(-2/5)} #change the c
     
     A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):2, (4,2):1}
-    #2,5],[2,-3],[2,1],[-2,-1
+
     b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
     
     chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1,'bvec':b_1})
