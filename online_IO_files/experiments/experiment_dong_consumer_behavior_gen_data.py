@@ -1,5 +1,20 @@
-##### Data Generation for Experiment for Dong et al. Methods #######
+##### experiment_dong_consumer_behavior_gen_data.py #######
+# 5/20/2019
 
+# This file produces the data for the "learning consumer preferences" (DCZ 2018)
+# computational experiment we carried out from  
+# the Dong, Chen, & Zeng 2018 paper.
+
+# Readers can find more information about this data generation process by going to
+# Section 1.4.4 Validation/Usage and scrolling to the part that says
+# Computational Experiment.
+
+# Note that we are following the data generation process that DCZ outlined in
+# their paper.
+
+# Additional Notes:
+
+# DCZ = Dong, Chen, & Zeng
 
 import sys
 sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
@@ -14,11 +29,11 @@ import pickle
 
 from online_IO_files.online_IO_source.online_IO import Online_IO #importing the GIO class for testing
 
-#### Step -1: Deciding Number of Samples to Generate ####
+###### Step -1: Deciding Number of Samples to Generate ######
 
 num_samples = 1000
 
-#### Step 0: Create the Forward Model ####
+####### Step 0: Create the Forward Model #######
 
 ## Setting up the Index Sets/Basics ##
 forward_model = pyo.ConcreteModel()
@@ -35,8 +50,10 @@ forward_model.p_t = pyo.Param(forward_model.eqindex,\
 forward_model.bscalar = pyo.Param(initialize=40)
 
 diag_vec = np.array([2.360,3.465,3.127,0.0791,4.886,2.110,\
-        9.519,9.999,2.517,9.867]) #BUT ALL OF THESE VALUES ARE +
-Q = np.diag(diag_vec) #THIS IS A POSITIVE DEFINITE MATRIX
+        9.519,9.999,2.517,9.867]) 
+Q = np.diag(diag_vec) #THIS IS A POSITIVE DEFINITE MATRIX (DCZ wrote a positive def
+                        #matrix in their supplemental material when they
+                        #meant to write a negative definite)
 
 def Q_param_rule(model,i,j):
     return Q[i-1,j-1]
@@ -50,7 +67,7 @@ c_dict = {1:-1.180,2:-1.733,3:-1.564,4:-0.040,5:-2.443,6:-1.055,\
 forward_model.cvec = pyo.Param(forward_model.varindex,\
                                initialize=c_dict)
 
-## Creating the Constraints/Objective Function ##
+#### Creating the Constraints/Objective Function ####
 
 ## Constraints ##
 def budget_constraint_rule(model,k):
@@ -68,31 +85,27 @@ def utility_func(model):
 forward_model.obj_rule = pyo.Objective(rule=utility_func,sense=pyo.minimize)
 
 
-#### Step 1: Generate p_t and y_t ####
+################# Step 1: Generate p_t and y_t ###########################
 #Pyomo really does work with dictionaries
 p_t_samples_dict = {}
 y_t_samples_dict = {}
 
 for ns in range(1,num_samples+1):
     p_t = np.random.uniform(5,25,(10,)) #10 random prices
-    #print("This is p_t:", p_t)
     p_t_dict = {}
     
     for i in range(10):
-        p_t_dict[(1,i+1)] = p_t[i] #need the dictionaries to be indexed from 1
-    
-    #for i in range(1,11): #so this DID work to update stuff - backup plan
-    #    forward_model.p_t[(1,i)] = p_t_dict[(1,i)]    
+        p_t_dict[(1,i+1)] = p_t[i] #need the dictionaries to be indexed from 1   
         
     forward_model.p_t.reconstruct(data=p_t_dict) 
     forward_model.budget_constraint.reconstruct() #for now, fixed it by just reconstructing
                                                 #the constraint objects individually
     
-    ## Solving the Model ##
-    solver = SolverFactory("gurobi")
+    #### Solving the Model #####
+    solver = SolverFactory("gurobi") 
     solver.solve(forward_model)
     
-    print("done with iteration of DCZ data gen")
+    print("done with iteration of DCZ data gen") #good for when want to get data
     
     x_t_dict = forward_model.x.extract_values() #get the exact x solution in dictionary form
     y_t_np_array = np.zeros((10,1))
@@ -105,6 +118,8 @@ for ns in range(1,num_samples+1):
     p_t_samples_dict[ns] = p_t_dict
     y_t_samples_dict[ns] = y_t_np_array
     
+    
+    
 ## Save the Data to Files in the Experiment Folder ##
 #Thanks to the following link for helping with this:
     #https://pythonprogramming.net/python-pickle-module-save-objects-serialization/
@@ -116,18 +131,6 @@ write_pickle_file_name.close()
 write_pickle_file_name2 = open("dong_y_t.pickle","wb")
 pickle.dump(y_t_samples_dict,write_pickle_file_name2)
 write_pickle_file_name2.close()
-
-#NEED TO ADD ANOTHER COUPLE OF LINES TO DO THE SAME
-#THING FOR THE Y_T_SAMPLES dictionary
-
-
-#Maybe want to make this the samples generation script
-
-##For this application: if we are maximizing utility: would we want negative definite?
-                #guess I need to think about the idea of having positive definite for
-                #minimization (and that guaranteeing a solution)
-
-
 
 
 

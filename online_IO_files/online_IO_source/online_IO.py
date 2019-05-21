@@ -1,12 +1,32 @@
-#### Class for Online Inverse Optimization Methods ####
-## These methods come from Dong, Chen, & Zeng 2018 
-## and B\"armann, Martin, Pokutta, & Schneider 2018
+#### online_IO.py: Class for Online Inverse Optimization Methods ####
+#5/19/2019
 
-#Big thanks to: http://www.qtrac.eu/pyclassmulti.html for explaining
-#how to break up methods to multiple files
+# This file contains the initialization method for and the mechanics methods
+# for the Online_IO class.  Readers/users can see Section 1.2.2: The Online_IO Class
+# in the Chapter documentation to find more information regarding these methods
+
+# The Online_IO class supports online inverse optimization algorithms from
+# the following papers: Dong, Chen, & Zeng 2018 and 
+# B\"armann, Martin, Pokutta, & Schneider 2018
+
+# Additional Notes:
+
+#Big thanks to Qtrac Ltd.: http://www.qtrac.eu/pyclassmulti.html for explaining
+#how to break up methods to multiple files.  We follow the procedure outlined
+#in this website and import both the decorator function and the other
+#functions/methods from the additional class files into this one, and then
+#we decorate the Online_IO class. These are more helpful websites for decorators:
+
+#https://realpython.com/primer-on-python-decorators/
+#https://www.codementor.io/sheena/advanced-use-python-decorators-class-function-du107nxsv
+#https://python-3-patterns-idioms-test.readthedocs.io/en/latest/PythonDecorators.html
+#(have a good example with decorators here)
 
 #Helpful for telling me about stale variables:
 #https://stackoverflow.com/questions/55711079/what-does-it-mean-when-a-variable-returns-stale-true
+
+#Can concatanate tuples using + operator
+#https://www.digitalocean.com/community/tutorials/understanding-tuples-in-python-3
 
 import sys
 sys.path.insert(0,"C:\\Users\\StephanieAllen\\Documents\\1_AMSC663\\Repository_for_Code")
@@ -21,25 +41,30 @@ import math
 
 from pyomo.core.expr import current as EXPR #trying something
 
-from online_IO_files.online_IO_source.decorator_for_online_IO import func_adds_methods
+## Importing the decorator function and the methods/functions from the other files ##
+from online_IO_files.online_IO_source.decorator_for_online_IO import func_that_adds_methods
 from online_IO_files.online_IO_source._dong_chen_zeng_methods import dong_chen_zeng_funcs #importing the Dong, Chen, Zeng methods
 from online_IO_files.online_IO_source._barmann_martin_pokutta_schneider_methods import barmann_martin_pokutta_schneider_funcs
 
-#Can concatanate tuples using + operator
-#https://www.digitalocean.com/community/tutorials/understanding-tuples-in-python-3
 
-@func_adds_methods(dong_chen_zeng_funcs+barmann_martin_pokutta_schneider_funcs)
+## Decorating the Online_IO class ##
+@func_that_adds_methods(dong_chen_zeng_funcs+barmann_martin_pokutta_schneider_funcs)
 class Online_IO(): 
     
     def __init__(self,initial_model=None,Qname='Q',cname='c',Aname='A',bname='b',Dname='D',fname='f',\
                  dimQ=(0,0),dimc=(0,0),dimA=(0,0),dimD=(0,0),binary_mutable=[0,0,0,0,0,0],non_negative=0,\
                  feasible_set_C=None,var_bounds=None): 
         
+        #METHOD DESCRIPTION: This initialization method sets up an instance of
+        #the Online_IO class.  It puts values provided in attributes, constructs
+        #various dictionaries from the provided values, and initializes attributes.
+        
         #We are assuming that binary_mutable is in the order of Q,c,A,b,D,f
         
         self.initial_model = initial_model #load initial pyomo model into attribute
         self.obj_vals = {} #going to initialize as a dictionary to make easier to handle
                             #different types of objective functions
+                            
         self.alg_specification = None #not initialized until call "initialize_IO_method"
                                         #by setting as None, can use "is __ none" method
         self.model_data_names = {'Q':Qname,'c':cname,'A':Aname,'b':bname,'D':Dname,'f':fname}
@@ -69,13 +94,12 @@ class Online_IO():
         self.model_data_names_mutable = mutable_params #NEW: (paramname,username) subset of model_data_names
         
         self.feasible_set_C = feasible_set_C #NEW CODE 5/5/2019 feasible_set_C.clone()
-                            #NEED TO CHECK THAT NOT USING .CLONE ISN'T GONNA BE AN ISSUE!
-        
-        #pdb.set_trace()
         
         ##### Dong_implicit_update Attributes #####
         self.KKT_conditions_model = None
-        self.batch_model = pyo.ConcreteModel() #initiating the batch model 
+        self.batch_model = pyo.ConcreteModel() #initiating the batch model
+                                            #(hoping to have in future iterations of the
+                                            #code)
         self.loss_model_dong = None
         self.noisy_decision_dong = None #holds the next noisy decision 
                                         #(if passed in, assume numpy column vector)
@@ -85,7 +109,7 @@ class Online_IO():
         self.c_t_dong = None
         self.c_t_dict_dong = {}
         self.update_model_dong = None
-        self.losses_dong = [] #MIGHT CHANGE to numpy data at some point
+        self.losses_dong = [] 
         self.opt_batch_sol = []
         
         ###### BMPS_online_GD Attributes #####
@@ -94,7 +118,7 @@ class Online_IO():
                                     #FOR NOW, only enabling for BMPS
         self.BMPS_subproblem = None
         self.project_to_F_model = None
-        self.D = None
+        self.D = None #these next two attributes are not relevant right now
         self.G_max = 0 #initializing max of diam(X_pt)
         self.c_t_BMPS = None
         self.xbar_t_BMPS = None
@@ -105,7 +129,9 @@ class Online_IO():
     
     
     def initialize_IO_method(self,alg_specification,alg_specific_params=None):
-        ### Each algorithm has its own set up procedure before the first iteration
+        #METHOD DESCRIPTION: Each algorithm has its own set up procedure 
+        #before the first iteration.  This method takes care of that.
+        
         if alg_specification=="Dong_implicit_update":  
             ### Step 0: Set Algorithm Name
             self.alg_specification = alg_specification 
@@ -116,7 +142,6 @@ class Online_IO():
             data = getattr(self.initial_model,self.model_data_names['c'])
             data = data.extract_values() #produces a dictionary
             self.c_t_dong = data 
-            #NEW CODE
             self.c_t_dict_dong[self.dong_iteration_num] = self.c_t_dong
                     
             #### Step 2: Construct the Initial KKT conditions Model ####        
@@ -131,12 +156,9 @@ class Online_IO():
         
         elif alg_specification == "BMPS_online_GD":
             ### Step 0: Check that have a feasible_set_C Param and Set Algorithm Name ###
-            ##NEW CODE 5/5/2019
             assert self.feasible_set_C is not None, "Error: you need to specify a feasible_set_C for BMPS_online_GD"
             
             self.alg_specification = alg_specification
-            
-            #pdb.set_trace()
             
             ### Step 1: Call Method to Create BMPS_subproblem ###
             self.compute_standardized_model(self.model_data_dimen['Q'],\
@@ -154,7 +176,6 @@ class Online_IO():
             ### Step 3: Checking for Parameters ###
             if alg_specific_params is not None:
                 self.if_use_diam = alg_specific_params['diam_flag']
-        
 
         else:
             print("Error, we do not support inputted method. (It is possible",\
@@ -165,7 +186,11 @@ class Online_IO():
     
     def receive_data(self,p_t=None,x_t=None):
         
-        #METHOD DESCRIPTION: We are assuming that if a parameter is mutable then the 
+        #METHOD DESCRIPTION: This method does the updating with p_t and puts the
+        #external entity's x_t into the appropriate attribute (depending upon
+        #the method)
+        
+        #We are assuming that if a parameter is mutable then the 
         #entire parameter block is mutable.  Users cannot just pass in single values.
         
         #Assume that x_t is a numpy vector
@@ -174,14 +199,18 @@ class Online_IO():
             print("Error: Must initialize an online algorithm before using this method. ",\
                   "You will need to use .initialize_IO_method.")
             return 0
+        
         elif self.alg_specification == "Dong_implicit_update":
             if p_t is not None:
                 assert type(p_t) is dict #making sure p_t is a dictionary
                 
+                ### Iterates through the elements of the p_t dictionary ###
+                ### and updates the parameters and then the constraints/expressions ###
                 for (class_pname,user_pname) in self.model_data_names_mutable.items():
                     data = p_t[user_pname]
                     getattr(self.KKT_conditions_model,class_pname).clear() #clearing the attribute
                     getattr(self.KKT_conditions_model,class_pname).reconstruct(data) #reconstruct the attribute
+                    
                     ### Obtain All of the Constraint Components of the KKT_conditions
                     ## Model and Reconstructing Them
                     for expr in self.KKT_conditions_model.component_objects(pyo.Expression):
@@ -189,9 +218,8 @@ class Online_IO():
                     for constr in self.KKT_conditions_model.component_objects(pyo.Constraint):
                         constr.reconstruct()
                     
-                    #setattr(self.KKT_conditions_model,class_pname,data)
             if x_t is not None:
-                
+                # Putting the x_t in the appropriate place #
                 (n,ph) = self.model_data_dimen['c']
                 #Assert Statement to Make sure Passed in a column vector
                 assert x_t.shape == (n,1),"Error: You did not pass a column vector of correct dimensions"
@@ -199,23 +227,12 @@ class Online_IO():
                                             #attribute that can be shared among the other methods
                                             
         elif self.alg_specification == "BMPS_online_GD":
-            #Make sure to reconstruct the objective function too when you update the 
-            #subproblem model
-            
-            #Yeah I'll put the updating of c_t in the subproblem here as well
-            #Currently in c_t_BMPS - passing a dictionary to this method, will
-            #convert the dictionary to a column vector in gradient descent step later
-            
-            #So, we do have x_t in this algorithm, but the p_t and the x_t are
-            #like "separately received" - so I think I should receive the x_t data
-            #through this method (bc it is the method's job after all) but we can store
-            #it in an attribute when we receive it, which will then be passed onto 
-            #the gradient_step method
             
             if p_t is not None: #we assume it is a dictionary
                 assert type(p_t) is dict #making sure passed in a dictionary
                 
                 ### Updating X(p_t) in BMPS_subproblem ###
+                # Iterating through the values in the dictionary #
                 for (class_pname,user_pname) in self.model_data_names_mutable.items():
                     data = p_t[user_pname]
                     getattr(self.BMPS_subproblem,class_pname).clear() #clearing the attribute
@@ -228,16 +245,9 @@ class Online_IO():
                 
                 ### Updating c_t in BMPS subproblem (using c_t_BMPS) ###
                 getattr(self.BMPS_subproblem,'c').clear()
-                getattr(self.BMPS_subproblem,'c').reconstruct(self.c_t_BMPS) #doesn't work
-                #and would need to hack the code - not going to do
-                #BACK UP: just delete the objective function and copy and paste the rule from
-                #the _BMPS_methods file - the .c part DOES work
+                getattr(self.BMPS_subproblem,'c').reconstruct(self.c_t_BMPS) 
                 
                 #Deleting the objective function#
-                #HOPING THIS KEEPS BETWEEN ITERATIONS
-                #REALLY NEED TO CHECK THAT THIS KEEPS AND THAT THE 
-                #INDEXED COMPONENTS ARE BEING reconstructed THE WAY I THINK THEY
-                #ARE SUPPOSED TO BE
                 self.BMPS_subproblem.del_component(self.BMPS_subproblem.obj_func)
                 
                 (n2,ph) = self.model_data_dimen['Q'] #to decide upon the objective rule
@@ -259,23 +269,14 @@ class Online_IO():
                 
                 else:
                     print("Incorrect value for dim of Q.  Somehow you put in a negative value...")
-                    return        
-                
-                #pdb.set_trace()
-                #EXPR.expression_to_string(self.BMPS_subproblem.obj_func._data[None])
-                
-                
-                ######THIS DOES WORK EVEN THOUGH THE CODE IS CONFUSED########
-                #for obj in self.BMPS_subproblem.component_objects(pyo.Objective):
-                #    obj.reconstruct() #using the objective rule 
+                    return                
                     
-                ### Checking that Everything Has been Constructed at the End of the Update ###
-                # Also going to check the bounds of the constraints
+                ### Doing some Basic Checks at the End the Update ###
+                # They won't necessary everything, but all of these things
+                # need to be true for the model to be working well
                 for constr in self.BMPS_subproblem.component_objects(pyo.Constraint):
-                    #DOES NOT WORK AS WELL AS WE THOUGHT!!!
                     assert constr._constructed == True, "Error in constraint construction (body)"
-                    for c in constr:#LOOK AT THE JUPYTER NOTEBOOK!!!
-                        #assert constr[c]._constructed == True, "Error in constraint construction (body)"
+                    for c in constr:
                         lb = constr[c].lower
                         ub = constr[c].upper
                         assert ((lb is not None) or (ub is not None)), "Error in constraint construction (LHS/RHS)"
@@ -295,11 +296,6 @@ class Online_IO():
         
         # METHOD DESCRIPTION: This method carries out another iteration of 
         # the algorithm with which the instance of the object has been working 
-        
-        #Maybe I can implement the passing in of the theta
-        #by setting a c attribute that gets initially filled
-        #when I initiate Dong et al, then the attribute gets updated with
-        #new parameter update at the end of the algorithm
         
         if self.alg_specification is None:
             print("Error: Must initialize an online algorithm before using this method. ",\
@@ -321,7 +317,7 @@ class Online_IO():
             self.c_t_dict_dong[self.dong_iteration_num] = self.c_t_dong
             
             #### Step 3: Calculate Batch Solution ####
-            ## Something to do in the future ##
+            # Something to do IN THE FUTURE #
             #self.calculate_batch_sol(dimQ=self.model_data_dimen['Q'],dimc=self.model_data_dimen['c'],\
             #                         dimA=self.model_data_dimen['A'],\
             #                         dimD=self.model_data_dimen['D'])
@@ -331,7 +327,7 @@ class Online_IO():
             if part_for_BMPS == 1: #part 1 for algorithm
                 ### Step 0: Update Iteration Count ###
                 self.BMPS_iteration_number = self.BMPS_iteration_number + 1
-                #pdb.set_trace()
+                
                 ### Step 1: Project to F (stores the c_t in c_t_BMPS) ###
                 self.project_to_F(dimc=self.model_data_dimen['c'],y_t=self.y_t_BMPS)
             
@@ -341,14 +337,7 @@ class Online_IO():
                 self.solve_subproblem() #obtain xbar
                 
                 ### Step 4: Calculate Learning Rate ###
-                #Based upon the self.if_use_diam flag (set up in initialization)#
-#                if self.if_use_diam == 1: #if we ARE using diameters
-#                    if self.dong_iteration_num < 2: #so if on first iteration, need to compute D
-#                        self.compute_diam_F(dimc=self.model_data_dimen['c'])
-#                    
-#                    self.compute_diam_X_pt(dimc=self.model_data_dimen['c']) #need to update each iteration
-#                    
-#                    eta_calculated = (1/math.sqrt(self.BMPS_iteration_number))*(self.D/self.G_max) 
+                
                 if self.if_use_diam == 0: #if we are NOT using diameters
                     eta_calculated = (1/math.sqrt(self.BMPS_iteration_number))
                 

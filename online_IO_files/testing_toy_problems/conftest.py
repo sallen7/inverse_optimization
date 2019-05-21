@@ -12,7 +12,9 @@
 #of "Overview of Online Methods and the Online_IO Class" section of the Chapter
 #Documentation.
 
-#See this subsection for more information. 
+#See this subsection for more information.
+
+#We've labelled all of the data constructs underneath their names. 
 
 
 import sys
@@ -64,7 +66,7 @@ def chan_lee_terekhov_linear_inequalities():
 
 @pytest.fixture
 def quadratic_NW():
-    ## Quadratic Example from pg 452-453 Nocedal and Wright
+    ## Toy Problem 2: Quadratic Example from pg 452-453 Nocedal and Wright
     #Has quadratic objective, equality constraints
     #The Q matrix is symmetric positive definite.
     
@@ -105,7 +107,7 @@ def quadratic_NW():
 
 @pytest.fixture
 def quadratic_portfolio_Gabriel():
-    #Example from Dr. Gabriel's ENME741 and ENME725 Class
+    #Toy Problem 3: Example from Dr. Gabriel's ENME741 and ENME725 Class
     #Variation on the Classical Portfolio Example
     
     ### Data ###

@@ -12,6 +12,9 @@
 #We have written "Step __" headers throughout the file indicating when we
 #are transitioning between testing methods.
 
+#We took the methods descriptions from the Chapter documentation so, for any
+#citations, see that document.
+
 #Additional notes:
 
 #We utilize a MATLAB script called "generating_data.m" to obtain some
@@ -47,6 +50,10 @@ from pyomo.core.expr import current as EXPR
 ## We need to check that the method creates the right standardized model ##
 
 def test_compute_standardized_model_CLT(chan_lee_terekhov_linear_inequalities):
+    # TEST DESCRIPTION: This test ensured that the compute_standardized_
+    # model method created the correct BMPS_subproblem pyomo model for the 
+    # unit test toy problem 1.
+    
     chan_lee_terekhov_linear_inequalities.feasible_set_C = pyo.ConcreteModel()
     chan_lee_terekhov_linear_inequalities.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0}) #this will set up the method 
     model = chan_lee_terekhov_linear_inequalities.BMPS_subproblem.clone()
@@ -65,6 +72,10 @@ def test_compute_standardized_model_CLT(chan_lee_terekhov_linear_inequalities):
 
     
 def test_compute_standardized_model_quadratic_NW(quadratic_NW):
+    # TEST DESCRIPTION: This test ensured that the compute_standardized_
+    # model method created the correct BMPS_subproblem pyomo model for the
+    # unit test toy problem 2.
+    
     quadratic_NW.feasible_set_C = pyo.ConcreteModel() #placeholder bc need to specify one
     quadratic_NW.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0}) #this will set up the method 
     model = quadratic_NW.BMPS_subproblem.clone() #clone the model
@@ -78,6 +89,10 @@ def test_compute_standardized_model_quadratic_NW(quadratic_NW):
     #methods.  Once changed to == I got that the unittests passed
     
 def test_compute_standardized_model_quadratic_portfolio_Gabriel(quadratic_portfolio_Gabriel):
+    # TEST DESCRIPTION: This test ensured that the compute_standardized_
+    # model method created the correct BMPS_subproblem pyomo model for the
+    # unit test toy problem 3.
+    
     quadratic_portfolio_Gabriel.feasible_set_C = pyo.ConcreteModel() #placeholder bc need to specify one
     quadratic_portfolio_Gabriel.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0})  
     
@@ -97,6 +112,14 @@ def test_compute_standardized_model_quadratic_portfolio_Gabriel(quadratic_portfo
 ##### Step 2: Checking the project_to_F function #####
 
 def test_project_to_F_obj_func(quadratic_NW):
+    # TEST DESCRIPTION: Since project_to_F essentially adds an objective
+    #function to the user defined feasible_set_C pyomo model and then solves the model
+    #with gurobi, the main element to check is this objective function.:
+    #We examined the objective function that project_to_F generates for the second unit test toy
+    #problem’s initial zt by plugging in test values we generated in a separate MATLAB
+    #script (generating_data.m) and comparing the objective function values between
+    #the MATLAB answers and the project_to_F objective function values.
+    
     #### Part 1: Defining the set C/F #####
     
     feasible_c_region = pyo.ConcreteModel()
@@ -163,6 +186,13 @@ def test_project_to_F_obj_func(quadratic_NW):
     assert obj_value_F == 101.0
     
 def test_project_to_F_test_problem(chan_lee_terekhov_linear_inequalities):
+    # TEST DESCRIPTION: We did also want to check that the right interfacing was 
+    #occurring between the user defined feasible_set_C and the project_
+    #to_F function, so we just defined a simple 2D box bounded in both dimensions by -1
+    #and 1 and made sure project_to_F would obtain the solution (0,1) if we proposed
+    #that zt was (0,2).
+
+    
     ### Defining a Simple feasible_set_C upon which to project ###
     feasible_c_region = pyo.ConcreteModel()
 
@@ -202,6 +232,10 @@ def test_project_to_F_test_problem(chan_lee_terekhov_linear_inequalities):
 ##### Step 3: solve_subproblem  ############ 
 
 def test_solve_subproblem_CLT(chan_lee_terekhov_linear_inequalities):
+    #TEST DESCRIPTION: These tests are very similar to the compute_standardized_
+    #model tests, except we use solve_subproblem to solve the BMPS_subproblem.
+    #This one is for unit test toy problem 1.
+    
     chan_lee_terekhov_linear_inequalities.feasible_set_C = pyo.ConcreteModel()
     chan_lee_terekhov_linear_inequalities.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0}) #this will set up the method 
     
@@ -213,6 +247,10 @@ def test_solve_subproblem_CLT(chan_lee_terekhov_linear_inequalities):
     assert np.all(np.around(solution,decimals=1) == np.array([[3.0],[4.0]])) 
       
 def test_solve_subproblem_quadratic_NW(quadratic_NW):
+    #TEST DESCRIPTION: These tests are very similar to the compute_standardized_
+    #model tests, except we use solve_subproblem to solve the BMPS_subproblem.
+    #This one is for unit test toy problem 2.
+    
     quadratic_NW.feasible_set_C = pyo.ConcreteModel() #placeholder bc need to specify one
     quadratic_NW.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0}) #this will set up the method 
     
@@ -225,6 +263,10 @@ def test_solve_subproblem_quadratic_NW(quadratic_NW):
     
     
 def test_solve_subproblem_quadratic_portfolio_Gabriel(quadratic_portfolio_Gabriel):
+    #TEST DESCRIPTION: These tests are very similar to the compute_standardized_
+    #model tests, except we use solve_subproblem to solve the BMPS_subproblem.
+    #This one is for unit test toy problem 3.
+    
     quadratic_portfolio_Gabriel.feasible_set_C = pyo.ConcreteModel() #placeholder bc need to specify one
     quadratic_portfolio_Gabriel.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0})  
     
@@ -239,6 +281,13 @@ def test_solve_subproblem_quadratic_portfolio_Gabriel(quadratic_portfolio_Gabrie
 ##### Step 4: Check gradient_step #####    
     
 def test_gradient_step(chan_lee_terekhov_linear_inequalities):
+    #TEST DESCRIPTION: This test uses data we generated in a MATLAB script to
+    #make sure that gradient_step does the correct calculations. We generate data for
+    #eta_t, c_t, x_t, xbat_t, feed the data into gradient_step, and then check 
+    #the results against the MATLAB results.
+
+    
+    
     ### Setting things up ###
     chan_lee_terekhov_linear_inequalities.feasible_set_C = pyo.ConcreteModel()
     chan_lee_terekhov_linear_inequalities.initialize_IO_method("BMPS_online_GD",alg_specific_params={'diam_flag':0}) #this will set up the method 

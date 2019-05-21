@@ -1,7 +1,20 @@
-### Methods for B\"armann, Martin, Pokutta, & Schneider 2018 ###
+## _barmann_martin_pokutta_schneider_methods.py ##
+## 5/20/2019
 
-#NOTE TO SELF: DO NEED TO BAKE IN THE MUTABILITY OF C!! BECAUSE IM SCREWING
-#UP THE UPDATE STEP BY MAKING IT THINK THAT IT NEEDS TO GET A CVEC FOR THE P_t PASS IN
+# This file contains the methods/functions for the 
+# B\"armann, Martin, Pokutta, & Schneider (2018) online gradient descent 
+# online inverse optimization
+# algorithm; these are algorithm specific methods. Users/readers can refer to 
+# Section 1.3.3: Methods to Implement Online Gradient Descent in Online_IO
+# in the Chapter documentation to learn more about these methods.
+# The mathematical background/implementation can be found in 
+# Sections 1.3.1-1.3.2
+
+# Additional Notes:
+# Big thanks to Qtrac Ltd.: http://www.qtrac.eu/pyclassmulti.html for explaining
+# how to break up methods into multiple files for a class.
+
+# BMPS = B\"armann, Martin, Pokutta, & Schneider 
 
 import copy
 import pdb #for debugging
@@ -12,24 +25,13 @@ from pyomo.opt import SolverStatus, TerminationCondition
 import pyomo.mpec as pyompec #for the complementarity
 import math
 
-#NOTE: will need separate experiment files for the BMPS experiment!!
 
 def compute_standardized_model(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
                            dimD=(0,0),non_negative=0):
-    #Can use stuff from compute_KKT_conditions to implement this (including
-    #the mutability stuff that is initialized in the beginning)
-    #Would be part of the initialize_method
     
-    #Want to store the model in like a "family of opt models" variable
-    
-    #Will be updated throughout the iterations via the receive_data method
-    #using the dictionary correspondence stuff I've already established
-    
-    #To test this: we can make sure that its solution matches the input model
-    #(like when we run a solver against it, will make sure it works)
-    
-    #And we can do the same update data stuff test as we did before with the portfolio
-    #optimization stuff
+    #METHOD DESCRIPTION: This method creates the standardized model for 
+    #the BMPS algorithm.  The compute_KKT_conditions code was very helpful
+    #in generating this code
     
     ######################################
     #### Step 0: Setting up the Variables and the Parameters ####
@@ -89,7 +91,7 @@ def compute_standardized_model(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
     #### Step 1: Set up the Constraints ####
     # We just need to follow the standard model: We are just transcribing
     # what the user inputted into a standard form
-    #pdb.set_trace()
+
     if m > 0: #then there are inequality constraints
         def inequality_constraints_rule(model,i):
             return sum(model.A[i,j]*model.x[j] for j in range(1,n+1)) <= model.b[i]
@@ -128,16 +130,14 @@ def compute_standardized_model(self,dimQ=(0,0),dimc=(0,0),dimA=(0,0),\
         
 
 def project_to_F(self,dimc=(0,0),y_t=None):
-    ### We are assuming that F is of a form where we have variables c
-    ## NEED TO FIGURE OUT IF y_t, c_t, etc are going to be dictionaries
-    ## or numpy arrays or like what the data format is gonna be
-    ## I don't know if you can add dictionaries?
+    #METHOD DESCRIPTION: This method carries out the c_t update with
+    #c_t = argmin{||c - z_{t-1} ||_2^2 : c \in C}
+    #Remember F == C and y_t == z_t 
+    #This is Step 2 of Online Gradient Descent.
     
-    ##Gonna use np.fromiter(b.values(),dtype=float,count=len(b))
-    #bvec_col = np.reshape(bvec,(len(b),1)) #then this to make a column vec
+    #Assume y_t is a column vector 
     
-    #ASSUME y_t IS A COLUMN VECTOR - and REMEMBER that it is used for 
-    #something else in this algorithm than in the last algorithm
+    ########################################################
     
     (n,ph) = dimc
     region_F = self.feasible_set_C.clone()
@@ -150,7 +150,7 @@ def project_to_F(self,dimc=(0,0),y_t=None):
     region_F.obj_func = pyo.Objective(rule=obj_func_region_F)
     
     ### Solving ###
-    solver = SolverFactory("gurobi") #going to go with most high power solver for now
+    solver = SolverFactory("gurobi") 
     
     results = solver.solve(region_F)
     print("This is the termination condition (project_to_F):",results.solver.termination_condition)
@@ -165,14 +165,16 @@ def project_to_F(self,dimc=(0,0),y_t=None):
     
     
 def solve_subproblem(self):
-    #Once we implement the compute_standardized_model method, we can easily
-    #solve the updated subproblem through this
-    #ASSUME EVERYTHING HAS BEEN UPDATED - the objective function and the constraints
+    #METHOD DESCRIPTION: This method solves the min c_t^T x st x \in X(p_t)
+    #problem, also known as BMPS_subproblem for the current c_t and p_t
+    #that the user has inputted into it
+    
+    ##########################################
     
     subproblem = self.BMPS_subproblem.clone()
     
     ### Solving ###
-    solver = SolverFactory("gurobi") #going to go with most high power solver for now
+    solver = SolverFactory("gurobi") 
     
     results = solver.solve(subproblem)
     print("This is the termination condition (solve_subproblem):",results.solver.termination_condition)
@@ -187,6 +189,12 @@ def solve_subproblem(self):
     
 
 def gradient_step(self,eta_t,x_t):
+    #METHOD DESCRIPTION: This method carries out Step 1 of Online Gradient Descent
+    #by computing the intermediate value z_{t+1} = c_t - eta_t (x_t - xbar_t)
+    #Remember: y_t == z_t
+    
+    ##################################
+    
     ### Need to convert the c_t dictionary into a vector
     ct_vals = copy.deepcopy(self.c_t_BMPS)
     ct_vec = np.fromiter(ct_vals.values(),dtype=float,count=len(ct_vals))
@@ -195,15 +203,15 @@ def gradient_step(self,eta_t,x_t):
     
     y_t = ct_col_vec - eta_t*(self.x_t_BMPS - self.xbar_t_BMPS) #NEW CODE: 4/24/2019 - flipped the x_t and xbar_t
     
-    #pdb.set_trace()
-    
     return y_t #going to leave it this way for now because I pass in y_t to
     #the next function
-    #IT DOES SEEM SLIGHTLY RANDOM
-    #It is kind of nice because its the final method in the "next_iteration" thing
     
     
-
+# From Qtrac Ltd.: http://www.qtrac.eu/pyclassmulti.html
+# As the website instructs, we put the methods in this tuple form to 
+# be able to pass them into the decorator function. 
+# We are just following what the website demonstrates.
+    
 barmann_martin_pokutta_schneider_funcs = (compute_standardized_model,\
                 project_to_F,solve_subproblem,gradient_step)
 

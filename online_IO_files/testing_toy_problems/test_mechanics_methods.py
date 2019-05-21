@@ -14,6 +14,9 @@
 #we are using and the (2) online inverse optimization method we are using
 #which is either DCZ or BMPS (initials of the researchers)
 
+#We took the methods descriptions from the Chapter documentation so, for any
+#citations, see that document.
+
 #Additional Notes:
 
 #We utilize a MATLAB script called "generating_data.m" to obtain some
@@ -39,7 +42,12 @@ from online_IO_files.online_IO_source.online_IO import Online_IO #importing the 
 # both the DCZ and BMPS algorithms, since receive_data contains
 # an outer if/else that depends upon these which algorithm we initiated
 
-def test_receive_data_quadratic_NW_DCZ(quadratic_NW):    
+def test_receive_data_quadratic_NW_DCZ(quadratic_NW):  
+    #TEST DESCRIPTION: This unit test checks that the KKT_conditions_
+    #model pyomo model for the Dong, Chen, & Zeng [16] algorithm is updated correctly when
+    #we pass in two different configurations of the equality constraints for the second unit
+    #test toy problem (“Quadratic Program with Equality Constraints”).
+    
     quadratic_NW.initialize_IO_method("Dong_implicit_update")
     
     ### Test 1 ###
@@ -100,6 +108,13 @@ def test_receive_data_quadratic_NW_DCZ(quadratic_NW):
         
 
 def test_receive_data_quadratic_NW_BMPS(quadratic_NW):
+    #TEST DESCRIPTION: This unit test checks that the BMPS_subproblem
+    #pyomo model for the Barmann, Martin, Pokutta, and Schneider [3] 
+    #algorithm is updated correctly when we pass in two different 
+    #configurations of the equality constraints
+    #for the second unit test toy problem (“Quadratic Program with Equality Constraints”)
+    
+    
     ###############################################################
     ### Generating the C/F Feasible Region for Projection Purposes ###
     feasible_c_region = pyo.ConcreteModel()
@@ -177,6 +192,11 @@ def test_receive_data_quadratic_NW_BMPS(quadratic_NW):
 
 
 def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
+    #TEST DESCRIPTION: This unit test checks that the KKT_conditions_model
+    #pyomo model for the Dong, Chen, & Zeng [16] algorithm is updated correctly when
+    #we change the (4) constraint for unit test toy problem 1 twice.
+    
+    
     ### Test Receiving Data ### 
     chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
     
@@ -233,6 +253,11 @@ def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
     
 
 def test_receive_data_CLT_DCZ_non_negative(chan_lee_terekhov_linear_inequalities):
+    #TEST DESCRIPTION: Same as the previous one, except we add
+    #in the constraint x >= 0, which doesn’t change the solutions but does affect how the
+    #KKT_conditions_model is formed and thus updated.
+    
+    
     ### Changing the Non-negative Flag to 1 ###
     chan_lee_terekhov_linear_inequalities.non_negative = 1    
     
@@ -290,6 +315,11 @@ def test_receive_data_CLT_DCZ_non_negative(chan_lee_terekhov_linear_inequalities
 
 
 def test_receive_data_CLT_BMPS(chan_lee_terekhov_linear_inequalities):    
+    # TEST DESCRIPTION: This unit test checks that the BMPS_subproblem pyomo
+    # model for the Barmann, Martin, Pokutta, and Schneider [3] algorithm is updated correctly
+    # when we change the (4) constraint for unit test toy problem 1 twice.
+    
+    
     ## Putting values in parameters when need to ##
     chan_lee_terekhov_linear_inequalities.feasible_set_C = pyo.ConcreteModel()
     chan_lee_terekhov_linear_inequalities.c_t_BMPS = {1:(-1),2:(-1)}
@@ -300,7 +330,7 @@ def test_receive_data_CLT_BMPS(chan_lee_terekhov_linear_inequalities):
     ########################################################
     ### Passing Data: Test 1 ###
     A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.9, (4,2):1}
-    #2,5],[2,-3],[2,1],[-2,-1
+
     b_1 = {1:-10,2:6,3:-4,4:10} #pretty sure single indexing for bs
     
     chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
@@ -342,6 +372,10 @@ def test_receive_data_CLT_BMPS(chan_lee_terekhov_linear_inequalities):
     
     
 def test_receive_data_diff_c_CLT_BMPS(chan_lee_terekhov_linear_inequalities):
+    #TEST DESCRIPTION: This unit test checks that the BMPS_subproblem’s
+    #objective function is updated with the most recent ct guess.  We artifically 
+    #pass c_ts to the c_t_BMPS attribute
+    
     #Can directly pass in different c values into c_t_BMPS to check that 
     #the c update step is working - can pass in the EXACT SAME
     #data for p_t and, before this, you could have changed the c_t_BMPS (look at style of this 
