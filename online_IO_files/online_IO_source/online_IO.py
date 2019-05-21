@@ -292,7 +292,7 @@ class Online_IO():
                 self.x_t_BMPS = x_t #assume get a column vector
         
             
-    def next_iteration(self,eta_factor=1,part_for_BMPS=1):
+    def next_iteration(self,eta_factor=1,part_for_BMPS=1,epsilon_for_DCZ=(1e-4)):
         
         # METHOD DESCRIPTION: This method carries out another iteration of 
         # the algorithm with which the instance of the object has been working 
@@ -309,12 +309,20 @@ class Online_IO():
             self.losses_dong.append(loss_this_iteration)
             
             #### Step 2: Update Rule ####
-            eta = eta_factor*(1/(math.sqrt(self.dong_iteration_num)))
-            
-            self.c_t_dong = self.update_rule_optimization_model(y=self.noisy_decision_dong,\
-                                                theta=self.c_t_dong,eta_t=eta)
-            
-            self.c_t_dict_dong[self.dong_iteration_num] = self.c_t_dong
+            if loss_this_iteration < epsilon_for_DCZ:
+                #This means that we do not update self.c_t_dong
+                #We do want to append the c_t that we are staying with onto
+                #the dictionary
+                print("Loss was below epsilon_for_DCZ.  Skipping update rule model")
+                self.c_t_dict_dong[self.dong_iteration_num] = self.c_t_dong
+            else:
+                print("Loss was above epsilon_for_DCZ.  Utilizing update rule model")
+                eta = eta_factor*(1/(math.sqrt(self.dong_iteration_num)))
+                
+                self.c_t_dong = self.update_rule_optimization_model(y=self.noisy_decision_dong,\
+                                                    theta=self.c_t_dong,eta_t=eta)
+                
+                self.c_t_dict_dong[self.dong_iteration_num] = self.c_t_dong
             
             #### Step 3: Calculate Batch Solution ####
             # Something to do IN THE FUTURE #

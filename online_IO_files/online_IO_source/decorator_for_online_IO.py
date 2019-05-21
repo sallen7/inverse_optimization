@@ -4,7 +4,7 @@
 # This file contains the decorator function that we are UTILIZING FROM:
 # Qtrac Ltd.: http://www.qtrac.eu/pyclassmulti.html
 # Again, we take NO CREDIT for this function; it comes from this source.
-# We simply changed the names of the parameters and functions a bit. 
+# We simply changed the names of the parameters and functions. 
 # but were still inspired by the naming conventions that Qtrac used.
 
 # We consulted several resources listed below to understand the code presented
