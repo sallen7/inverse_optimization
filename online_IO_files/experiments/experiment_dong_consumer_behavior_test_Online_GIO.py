@@ -127,7 +127,7 @@ for i in range(1,num_samples+1):
             assert ((lb is not None) or (ub is not None)), "Error in constraint construction (LHS/RHS)"
     
     #### Step 3: Perform Update Rule ####
-    online_cb.next_iteration(eta_factor=5,epsilon_for_DCZ=1e-4) #go to the next iteration
+    online_cb.next_iteration(eta_factor=5,epsilon_for_DCZ=(1e-10)) #go to the next iteration
 
 
 ##### TIMING ######    

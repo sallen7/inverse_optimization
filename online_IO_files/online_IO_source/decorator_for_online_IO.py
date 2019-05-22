@@ -31,7 +31,7 @@ import pdb #for debugging
 import math
 
 def func_that_adds_methods(funcs_to_add): #we are taking in functions as arguments (but we are DECORATING a class)
-                                #we assume this is a sequence of functions
+                                #we assume this is a sequence of functions; thanks to python-3-patterns-idioms-test 
     def actual_decorator_for_class_steph(Class_decorating): #maybe because we define "funcs" before online_IO, the decorator
                         #perhaps realizes that Class is the thing we are hitting (yup the third
                         #link python-3-patterns-idioms-test above demoed this); we are actually decorating the class

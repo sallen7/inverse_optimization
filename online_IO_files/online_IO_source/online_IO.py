@@ -292,7 +292,7 @@ class Online_IO():
                 self.x_t_BMPS = x_t #assume get a column vector
         
             
-    def next_iteration(self,eta_factor=1,part_for_BMPS=1,epsilon_for_DCZ=(1e-4)):
+    def next_iteration(self,eta_factor=1,part_for_BMPS=1,epsilon_for_DCZ=(1e-10)):
         
         # METHOD DESCRIPTION: This method carries out another iteration of 
         # the algorithm with which the instance of the object has been working 
