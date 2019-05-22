@@ -100,7 +100,6 @@ online_cb = Online_IO(cb_model,Qname='Qmat',cname='cvec',Aname='p_t',\
           feasible_set_C=(-5,0)) #NEW feasible_set_C added 5/12/2019
 
 online_cb.initialize_IO_method("Dong_implicit_update")
-
  
 ##### Step 2-3: Iterate Through the Data and, for each iteration, #####
 ##### Run receive_data and next_iteration in Sequence #####

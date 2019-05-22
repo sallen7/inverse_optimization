@@ -172,6 +172,7 @@ for i in range(1,num_samples+1):
     ### descent step", and calculating the learning rate (BMPS, 2018)
     
     online_cb.next_iteration(part_for_BMPS=2)
+    #pdb.set_trace()
     
     ## Save some data ##
     c_t_dict_vecs[i] = copy.deepcopy(online_cb.c_t_BMPS)

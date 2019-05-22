@@ -88,9 +88,17 @@ def test_receive_data_quadratic_NW_DCZ(quadratic_NW):
     
     quadratic_NW.receive_data(p_t={'Amatrix':A_2, 'bvector':b_2}) #should update
                                     #the parameters accordingly
+                                    
+    #print("Quadratic_NW DCZ:")
+    #quadratic_NW.KKT_conditions_model.pprint()
     
     model = quadratic_NW.KKT_conditions_model.clone()
-    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+    
+    ### Dummy Variable Method ###
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
+    
     
     solver = SolverFactory("gurobi") 
     solver.solve(model)
@@ -175,7 +183,8 @@ def test_receive_data_quadratic_NW_BMPS(quadratic_NW):
     b_2 = {1:-7, 2:0} #pretty sure single indexing for bs
     
     quadratic_NW.receive_data(p_t={'Amatrix':A_2, 'bvector':b_2}) #should update
-                                    #the parameters accordingly
+                                    #the parameters accordingly                               
+    
     
     model = quadratic_NW.BMPS_subproblem.clone()
     
@@ -218,7 +227,7 @@ def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
     #model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
     
     solver = SolverFactory("gurobi") 
-    solver.solve(model)
+    solver.solve(model)        
     
     solution = model.x.extract_values()
 
@@ -237,7 +246,12 @@ def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
                                     #the parameters accordingly
     
     model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
-    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+
+    ### Dummy Variable Method ###
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
+    
     
     solver = SolverFactory("gurobi") 
     solver.solve(model)
@@ -278,8 +292,6 @@ def test_receive_data_CLT_DCZ_non_negative(chan_lee_terekhov_linear_inequalities
     model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
     model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
     
-    #model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
-    
     solver = SolverFactory("gurobi") 
     solver.solve(model)
     
@@ -300,7 +312,12 @@ def test_receive_data_CLT_DCZ_non_negative(chan_lee_terekhov_linear_inequalities
                                     #the parameters accordingly
     
     model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
-    model.obj_func = pyo.Objective(expr=5)  #add a constant objective func 
+ 
+    ### Dummy Variable Method ###
+    model.alpha = pyo.Var([1])
+    model.alpha_constraint = pyo.Constraint(expr=model.alpha[1]==5)
+    model.obj_func = pyo.Objective(expr = model.alpha[1]*3)
+    
     
     solver = SolverFactory("gurobi") 
     solver.solve(model)
