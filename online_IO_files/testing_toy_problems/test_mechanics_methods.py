@@ -208,6 +208,8 @@ def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
     
     ### Test Receiving Data ### 
     chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
+    #print("chan_lee_terekhov_linear_inequalities (right after initialize_IO_method):")
+    #chan_lee_terekhov_linear_inequalities.KKT_conditions_model.pprint()
     
     ### Passing Data: Test 1 ###
     A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.9, (4,2):1}
@@ -245,6 +247,9 @@ def test_receive_data_CLT_DCZ(chan_lee_terekhov_linear_inequalities):
     chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
                                     #the parameters accordingly
     
+    #print("chan_lee_terekhov_linear_inequalities: (after reconstruct 2)")                                
+    #chan_lee_terekhov_linear_inequalities.KKT_conditions_model.pprint()
+    
     model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
 
     ### Dummy Variable Method ###
@@ -276,6 +281,8 @@ def test_receive_data_CLT_DCZ_non_negative(chan_lee_terekhov_linear_inequalities
     chan_lee_terekhov_linear_inequalities.non_negative = 1    
     
     chan_lee_terekhov_linear_inequalities.initialize_IO_method("Dong_implicit_update")
+    print("chan_lee_terekhov_linear_inequalities NON NEG - right after initialize_IO_method:")
+    chan_lee_terekhov_linear_inequalities.KKT_conditions_model.pprint()
     
     ### Passing Data: Test 1 ###
     A_1 = {(1,1):-2, (1,2):-5, (2,1):-2, (2,2):3, (3,1):-2, (3,2):-1, (4,1):1.9, (4,2):1}
@@ -310,6 +317,9 @@ def test_receive_data_CLT_DCZ_non_negative(chan_lee_terekhov_linear_inequalities
     
     chan_lee_terekhov_linear_inequalities.receive_data(p_t={'Amat':A_1, 'bvec':b_1}) #should update
                                     #the parameters accordingly
+    
+    print("chan_lee_terekhov_linear_inequalities NON NEGATIVE - after receive data 2")
+    chan_lee_terekhov_linear_inequalities.KKT_conditions_model.pprint()
     
     model = chan_lee_terekhov_linear_inequalities.KKT_conditions_model.clone()
  

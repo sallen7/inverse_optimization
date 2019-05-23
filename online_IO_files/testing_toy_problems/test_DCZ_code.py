@@ -284,13 +284,14 @@ def test_update_rule_optimization_model_obj_func(chan_lee_terekhov_linear_inequa
     
     #### Check that the c variables were unfixed ####
     for i in range(1,3):
-        assert chan_lee_terekhov_linear_inequalities.update_model_dong.c[i].fixed == False #make sure variables still
-                #fixed
+        assert chan_lee_terekhov_linear_inequalities.update_model_dong.c[i].fixed == False #make sure variables unfixed
     
     #### Check that the lower and upper bound constraints were constructed ####
+    # Not an amazing flag to check, but still something that absolutely should be true
     assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_lower._constructed == True
     assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_upper._constructed == True
     
+    # These tests are better #
     for i in range(1,3):
         assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_lower[i].lower == -10
         assert chan_lee_terekhov_linear_inequalities.update_model_dong.c_bound_lower[i].upper == None

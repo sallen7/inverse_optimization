@@ -107,6 +107,7 @@ for ns in range(1,num_samples+1):
     forward_model_BMPS.RHSscalar.reconstruct(data=RHS_t_dict)
     forward_model_BMPS.budget_constraint.reconstruct()
     
+    
     ##### Solving the Model #####
     solver = SolverFactory("gurobi")
     solver.solve(forward_model_BMPS)

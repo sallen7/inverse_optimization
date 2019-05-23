@@ -192,9 +192,9 @@ BMPS_obj_error = np.zeros((num_samples,))
 BMPS_sol_error = np.zeros((num_samples,))
 BMPS_total_error = np.zeros((num_samples,))
 
-for i in range(1,num_samples+1): #cannot directly compare graph to paper bc we use 1/sqrt(t) - might need to run for more iterations?
+for i in range(1,num_samples+1): 
     BMPS_obj_error[i-1] = np.dot(np.transpose(c_t_dict_vecs[i]),(x_t_samples[i]-xbar_dict_vecs[i]))
-    BMPS_sol_error[i-1] = np.dot(np.transpose(true_u_vec),(x_t_samples[i]-xbar_dict_vecs[i])) #since we made u_vec as like negative ok?
+    BMPS_sol_error[i-1] = np.dot(np.transpose(true_u_vec),(x_t_samples[i]-xbar_dict_vecs[i])) 
     BMPS_total_error[i-1] = BMPS_obj_error[i-1] - BMPS_sol_error[i-1] 
  
 BMPS_obj_error = np.divide(np.cumsum(BMPS_obj_error),np.arange(1,num_samples+1))

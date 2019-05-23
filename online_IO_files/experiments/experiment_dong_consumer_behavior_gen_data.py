@@ -113,11 +113,9 @@ for ns in range(1,num_samples+1):
     for key,value in x_t_dict.items(): #need to transform into a column vector
         y_t_np_array[key-1,0] = value + np.random.uniform(-0.25,0.25)
         
-        
     ## Putting things in Dictionaries at the End ##
     p_t_samples_dict[ns] = p_t_dict
     y_t_samples_dict[ns] = y_t_np_array
-    
     
     
 ## Save the Data to Files in the Experiment Folder ##

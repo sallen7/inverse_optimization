@@ -315,7 +315,7 @@ def update_rule_optimization_model(self,y,theta,eta_t):
     update_rule_model = self.KKT_conditions_model.clone() 
     
     update_rule_model.c.unfix() #unfix the c variables (since coming from the KKT_conditions_model
-                                #we know the initial value is set at 0)
+                                #we know the initial value is set at the original inputted c_t data)
                                 
     ### Step 2: Set Bounds on c variables (if feasible_set_C tuple has been passed) ###
     ##NEW CODE 5/5/2019

@@ -43,20 +43,20 @@ This project implements state-of-the-art inverse optimization (IO) methods found
 
 These are the results of our unit tests using the `pytest` unit testing package:
 
->====================== test session starts =======================
+>========================= test session starts =========================
 
->platform win32 -- Python 3.6.2, pytest-4.3.0, py-1.8.0, pluggy-0.9.0
->rootdir: C:\Users\StephanieAllen\Documents\1_AMSC663\Repository_for_Code\online_IO_files\testing_toy_problems, inifile:
+>platform win32 -- Python 3.7.3, pytest-4.5.0, py-1.8.0, pluggy-0.11.0
+>rootdir: C:\Users\StephanieAllen\Documents\1_AMSC663\Repository_for_Code\online_IO_files\testing_toy_problems
 
 >collected 22 items
 
->test_BMPS_code.py .........                                 [ 40%]
+>test_BMPS_code.py .........                                      [ 40%]
 
->test_DCZ_code.py .......                                    [ 72%]
+>test_DCZ_code.py .......                                         [ 72%]
 
->test_mechanics_methods.py ......                            [100%]
+>test_mechanics_methods.py ......                                 [100%]
 
->=================== 22 passed in 4.32 seconds ====================
+>====================== 22 passed in 4.55 seconds ======================
 
 
 ## Specifications for Set-up of Code ##
